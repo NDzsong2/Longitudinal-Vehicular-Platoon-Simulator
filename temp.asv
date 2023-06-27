@@ -1,0 +1,31 @@
+% Define the two points
+x = [1, 5];
+y = [2, 8];
+
+% Compute the spline
+t = linspace(1,0.1,2);
+xx = spline(x, y, t);
+
+% Plot the spline
+plot(xx, t, 'k-', 'LineWidth', 2);
+
+% Add an arrowhead at the end of the spline
+hold on;
+head_length = 0.5; % adjust as needed
+head_angle = pi/6; % adjust as needed
+dx = xx(end)-xx(end-1);
+dy = t(end)-t(end-1);
+theta = atan2(dy, dx);
+x_head = xx(end) - head_length*cos(theta-head_angle):...
+         head_length/2*cos(theta):...
+         xx(end) - head_length*cos(theta+head_angle);
+y_head = t(end) - head_length*sin(theta-head_angle):...
+         head_length/2*sin(theta):...
+         t(end) - head_length*sin(theta+head_angle);
+plot(x_head, y_head, 'k-', 'LineWidth', 2);
+
+% Add labels and formatting
+xlabel('X');
+ylabel('Y');
+title('Spline with Arrowhead');
+grid on;

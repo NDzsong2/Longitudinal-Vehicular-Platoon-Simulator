@@ -1,0 +1,66 @@
+classdef InfoFlowTopology
+    %UNTITLED5 Summary of this class goes here
+    %   Detailed explanation goes here
+
+    properties
+        topologyIndex
+
+        startNodes
+        endNodes
+        startPositions
+        endPositions
+
+        graph
+
+        graphics
+    end
+
+    methods
+
+        function obj = InfoFlowTopology(i,N,s,t,weights,s_pos,t_pos)
+            obj.topologyIndex = i;
+
+            nodenames = {};
+            for nodeNum = 1:1:N
+                nodenames{nodeNum} = num2str(nodeNum);
+            end
+            
+            % Here, we need the digraph for further compute the graph matrices
+            obj.graph = digraph(s,t,weights,nodenames);
+            obj.startNodes = s;
+            obj.endNodes = t;
+            obj.startPositions = s_pos;
+            obj.endPositions = t_pos;
+        end
+        
+        function outputArg = drawTopology(obj,figNum,adjHeight_coeff)
+            figure(figNum); hold on;
+            if ~isempty(obj.graphics)
+                delete(obj.graphics);
+            end
+
+            % Here, we need the digraph (augmented but with no leader) with curved communication links
+            for l = 1:1:length(obj.startPositions)
+                p1 = obj.startPositions(:,l)';
+                p2 = obj.endPositions(:,l)';
+                linkLength_x = abs(p2(1)-p1(1));
+                link_AvePoint = [0.5 * linkLength_x; adjHeight_coeff * ()];
+                if p1(1) > p2(1)
+                    link_xPoints = [p1(1) link_AvePoint(1) p2(1)];
+                    link_yPoints = [p1(2) link_AvePoint(2) p2(2)];
+                    linkLength_xx = p1(1):0.01:linkLength_x;     
+                    linkLength_yy = spline(link_xPoints,link_yPoints,linkLength_xx);
+                    obj.graphics(l) = plot(linkLength_xx,linkLength_yy);
+%                 obj.graphics(l) = quiver(p1(1),p1(2),dp(1),dp(2),0,'filled','Color','m','LineWidth',1,...
+%                         'ShowArrowHead','on','MaxHeadSize',0.5,'AutoScale','off');
+            end
+        end
+    end
+end
+
+
+
+
+
+
+
