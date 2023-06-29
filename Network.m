@@ -71,14 +71,16 @@ classdef Network < handle
             
             % Do the necessary computations/generations to generate the signals to initiate the program
             for k = 1:1:obj.numOfPlatoons
-                % Generate the updated states
-                obj.platoons(k).generateStates(dt);
 
                 % Generate the noises
                 obj.platoons(k).generateNoises();                      % generate the noises associated with the platoons.
 
                 % Compute all the controls 
 %                 obj.platoons(k).computeControlInputs(obj.platoons,dt); % compute all the self-controls associated with the platoons.
+
+                % Update the states
+                obj.platoons(k).update(dt);
+                
             end
 
 %             % Update the cross-chain control outputs based on the computed cross-chain control inputs)

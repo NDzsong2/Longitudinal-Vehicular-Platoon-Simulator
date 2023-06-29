@@ -17,11 +17,11 @@ classdef Vehicle < handle
         des_states           % desired signals to be tracked
         states               % x_ik
         noise                % v_ik
-        controlInputs
+        controlInput
         outputs
 
         % state history
-        stateHistory = zeros(3,1000000)
+        stateHistory = []
        
         % GeometricProperties (for plotting)          
         inNeighbors = []
@@ -54,7 +54,7 @@ classdef Vehicle < handle
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Initial controller values
 
-            obj.controlInputs = 0.5 * ones(1);
+            obj.controlInput = 5 * ones(1);
             obj.outputs = zeros(1);
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
@@ -138,33 +138,33 @@ classdef Vehicle < handle
             
         end
         
-
         % Update the state values of the system dynamics
         function outputArg = update(obj,dt)
             
-            A = [0 1 0;
-                0 0 1;
-                0 0 0];
+            A = [0 1 0; 0 0 1; 0 0 0];
             B = [0 0 1]';
-            updateValue = A * obj.states + B * obj.controlInputs + obj.noise;
-            newStates = obj.states + dt * (updateValue);
-            obj.states = newStates;            % testing
+
+            updateValue = A*obj.states + B*obj.controlInput + obj.noise;
+            
+            newStates = obj.states + dt*(updateValue);
+            obj.states = newStates;                     
             
             % Collect all the state points at each step
             obj.stateHistory = [obj.stateHistory, newStates];
-        end
 
+        end
 
         function outputArg = generateNoise(obj)
             %obj.noise = obj.noiseMean + obj.noiseStd*randn(1,1);
-            w = obj.noiseMean + obj.noiseStd*randn(1);
+            w = obj.noiseMean + obj.noiseStd.*randn(3,1);
             
-            stepSize = 1;
-            if w < obj.noise - stepSize
-                w = obj.noise - stepSize;
-            elseif w > obj.noise + stepSize
-                w = obj.noise + stepSize;
-            end
+%             stepSize = 1;
+%             if w < obj.noise - stepSize
+%                 w = obj.noise - stepSize;
+%             elseif w > obj.noise + stepSize
+%                 w = obj.noise + stepSize;
+%             end
+
             obj.noise = w;
 
         end

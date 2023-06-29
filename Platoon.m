@@ -116,147 +116,18 @@ classdef Platoon < handle
                     end
                 end            
         end
-
-
-        % Show the real time states (position and velocity) before each vehicle's arrow 
-%         function outputArg = drawState(obj,figNum)
-%             % Draw vehicle and the real time states
-%             for i = 1:1:obj.numOfVehicles
-% 
-%                 x_i = obj.vehicles(i).states;
-%                 obj.vehicles(i).drawState(figNum);
-% 
-%             end
-% 
-%             if ~isempty(obj.graphics)
-%                 delete(obj.graphics)
-%             end
-%             
-% %             handle = plot(poly1,'FaceColor','r');
-% %             obj.graphics = handle;
-% 
-%         end
         
-%           function outputArg = computeControlInputs(obj,platoons,dt)
-%             % For each facility, all the control inputs and outputs needs to be determined. 
-%             % Each facility has controlInputs and controlOutputs, each of dimention N. 
-%             % Each facility can decide the controlInputs, but the controlOutputs are determined by the
-%             % other facilities/demands. 
-%             controlThreshold = 2000;
-% 
-%             for i = obj.numOfVehicles:-1:1
-%                 k = obj.platoonIndex;
-% 
-%                 % u_{ii,k+1} (determined automatically)
-%                 if k == obj.numOfVehicles
-%                     obj.vehicles(k).controlOutputs(i) = obj.demand;
-%                 else
-%                     obj.vehicles(k).controlOutputs(i) = obj.facilities(k+1).controlInputs(i);
-%                 end
-% 
-%                 % u_{ii,k} = u_{ii,k+1} + \rho_{i,k}\bar{x}_{i,k} + \bar{K}_{ii,k}e_{i,k} (determined based on feedback)
-%                 K_ii_k = obj.controlGains(i,k); %-1;
-%                 e_i_k = obj.facilities(k).stateX - obj.facilities(k).xBar;
-%                 rho_i_k = obj.facilities(k).decayRate;
-%                 controlInput = obj.facilities(k).controlOutputs(i) + rho_i_k*obj.facilities(k).xBar + K_ii_k*e_i_k;
-%                 if controlInput < 0
-%                     controlInput = 0;
-%                 elseif controlInput>controlThreshold
-%                     controlInput = controlThreshold;
-%                 end
-% 
-%                 if k>1
-%                     if obj.facilities(k-1).stateX < controlInput*dt
-%                         controlInput = 0;
-%                     end
-%                 end
-% 
-%                 obj.facilities(k).controlInputs(i) = controlInput; %5*rand(1,1); % temp
-% 
-% 
-%                 % u_{ij,k} = K_{ij,k}(e_{i,k}-e_{j,k-1}) (determined based on feedback)
-%                 if k~=1
-%                     inNeighbors = obj.facilities(k).inNeighbors;
-%                     for j = inNeighbors
-%                         e_j_k_1 = chains(j).facilities(k-1).stateX - chains(j).facilities(k-1).xBar;
-%                         
-%                         K_ij_k = obj.controlGains(j,k); %-2;
-%                         controlInput = K_ij_k*(e_i_k-e_j_k_1);
-%                         if controlInput < 0
-%                             controlInput = 0;
-%                         elseif controlInput>controlThreshold
-%                             controlInput = controlThreshold;
-%                         end
-% 
-%                         if k>1
-%                             if chains(j).facilities(k-1).stateX < controlInput*dt
-%                                 controlInput = 0;
-%                             end
-%                         end
-%                         obj.facilities(k).controlInputs(j) = controlInput; %rand(1,1); 
-%                     end 
-%                 end
-%             end
-%         end
-
-%         function outputArg = updateControlOutputs(obj,chains)
-%             % For each facility, all the control inputs and outputs needs to be determined. 
-%             % Each facility has controlInputs and controlOutputs, each of dimention N. 
-%             % Each facility can decide the controlInputs, but the controlOutputs are determined by the
-%             % other facilities/demands. 
-            
-%             for k = 1:1:obj.numOfVehicles
-%                 i = obj.platoonIndex;
-% 
-%                 % u_{ji,k+1} (determined automatically)
-%                 if k~=obj.numOfVehicles
-%                     outNeighbors = obj.facilities(k).outNeighbors;
-%                     for j = outNeighbors
-%                         obj.facilities(k).controlOutputs(j) = chains(j).facilities(k+1).controlInputs(i);
-%                     end 
-%                 end
-%             end
-%         end
-        
-%         function outputArg = generateDemand(obj)            
-%             w = obj.demandMean + obj.demandStd*randn(1,1);
-%             stepSize = 2;
-%             if w < obj.demand - stepSize
-%                 w = obj.demand - stepSize;
-%             elseif w > obj.demand + stepSize
-%                 w = obj.demand + stepSize;
-%             end
-%             obj.demand = w;
-% 
-%             if obj.demand < 0
-%                 obj.demand = 0.01;
-%             end
-%         end
-
-
-        function outputArg = generateStates(obj,dt)
-            for i = 1:1:obj.numOfVehicles
-                obj.vehicles(i).update(dt);
-            end
-        end
-
-
         function outputArg = generateNoises(obj)
             for i = 1:1:obj.numOfVehicles
                 obj.vehicles(i).generateNoise();
             end
         end
 
-%         function totalError = update(obj,dt)
-%             error = 0;
-%             for i = 1:1:obj.numOfVehicles
-%                 obj.vehicles(i).update(dt);
-%                 error = error + (obj.vehicles(i).state-obj.vehicles(i).des_state);
-%             end
-%             totalError = error;
-% 
-%         end
-
+        function totalError = update(obj,dt)
+            for i = 1:1:obj.numOfVehicles
+                obj.vehicles(i).update(dt);
+            end
+        end
         
     end
 end
