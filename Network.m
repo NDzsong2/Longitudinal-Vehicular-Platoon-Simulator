@@ -21,7 +21,7 @@ classdef Network < handle
 
     methods
 
-        function obj = Network(indexVal,numOfPlatoons,numOfVehicles,parameters,states,des_states,noiseMean,noiseStd)
+        function obj = Network(indexVal,numOfPlatoons,numOfVehicles,parameters,states,desiredSeparation,noiseMean,noiseStd)
 
             obj.networkIndex = indexVal;
             obj.numOfPlatoons = numOfPlatoons;
@@ -30,7 +30,7 @@ classdef Network < handle
             % create the platoons
             platoons = [];
             for k = 1:1:numOfPlatoons
-                platoon = Platoon(k,numOfVehicles(k),parameters{k},states{k},des_states{k},noiseMean{k},noiseStd{k});
+                platoon = Platoon(k,numOfVehicles(k),parameters{k},states{k},desiredSeparation{k},noiseMean{k},noiseStd{k});
                 platoons = [platoons, platoon];
             end
             obj.platoons = platoons;
@@ -73,10 +73,14 @@ classdef Network < handle
             for k = 1:1:obj.numOfPlatoons
 
                 % Generate the noises
-                obj.platoons(k).generateNoises(t,dt);                      % generate the noises associated with the platoons.
+                obj.platoons(k).generateNoises();
+
+                % Compute platooning errors
+                obj.platoons(k).getPlatooningErrors1();
+                obj.platoons(k).getPlatooningErrors2();
 
                 % Compute all the controls 
-                obj.platoons(k).computeControlInputs(t,dt); % compute all the self-controls associated with the platoons.
+                obj.platoons(k).computeControlInputs(t); % compute all the self-controls associated with the platoons.
 
                 % Update the states
                 obj.platoons(k).update(t,dt);

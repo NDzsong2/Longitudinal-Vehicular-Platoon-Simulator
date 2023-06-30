@@ -14,10 +14,11 @@ classdef Vehicle < handle
         noiseStd
         
         % States
-        des_states           % desired signals to be tracked
+        desiredSeparation    
         states               % x_ik
         noise                % v_ik
         controlInput
+        errors
         outputs
 
         % state history
@@ -36,7 +37,7 @@ classdef Vehicle < handle
     
     methods
 
-        function obj = Vehicle(k,i,parameters,states,des_states,noiseMean,noiseStd)
+        function obj = Vehicle(k,i,parameters,states,desiredSeparation,noiseMean,noiseStd)
 
             % Constructor
             obj.platoonIndex = k;
@@ -45,7 +46,7 @@ classdef Vehicle < handle
             obj.vehicleParameters = parameters;                     %[mass,length,height1,height2]
 
             obj.states = states;                                      % states of the i^{th} vehicle
-            obj.des_states = des_states;                              % need to track this signal (desired position,velocity and 0 acceleration for i^{th} vehicle)
+            obj.desiredSeparation = desiredSeparation;                              % need to track this signal (desired position,velocity and 0 acceleration for i^{th} vehicle)
             
             
             % External disturbances represented by random noise
@@ -143,7 +144,7 @@ classdef Vehicle < handle
 
 
 
-        function outputArg = generateNoise(obj,t,dt)
+        function outputArg = generateNoise(obj)
 
             if obj.vehicleIndex==1
                 w = 0; % Leader is not affected by the noise.
@@ -163,8 +164,18 @@ classdef Vehicle < handle
 
         end
 
+        function outputArg = getPlatooningErrors1(obj,leaderStates)
+            separationFromLeader = obj.desiredSeparation; 
+            obj.errors = obj.states - leaderStates + [separationFromLeader;0;0];
+        end
 
-        function outputArg = computeControlInputs(obj,t,dt)
+        function outputArg = getPlatooningErrors2(obj,leaderStates)
+            separationFromLeader = obj.desiredSeparation; 
+            obj.errors = obj.states - leaderStates + [separationFromLeader;0;0];
+        end
+
+
+        function outputArg = computeControlInputs(obj,t)
             % Leader's control (from planned)
             if obj.vehicleIndex==1
                 

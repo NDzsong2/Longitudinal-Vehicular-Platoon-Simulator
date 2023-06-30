@@ -17,7 +17,7 @@ classdef Platoon < handle
     
     methods
 
-        function obj = Platoon(k,n_k,parameters,states,des_states,noiseMean,noiseStd)
+        function obj = Platoon(k,n_k,parameters,states,desiredSeparation,noiseMean,noiseStd)
 
             obj.platoonIndex = k;
             obj.numOfVehicles = n_k;
@@ -26,7 +26,7 @@ classdef Platoon < handle
             vehicles = [];
             for i = 1:1:n_k
                 % create an object from the Vehicle class
-                vehicle = Vehicle(k,i,parameters(:,i),states(:,i),des_states(:,i),noiseMean(:,i),noiseStd(:,i));
+                vehicle = Vehicle(k,i,parameters(:,i),states(:,i),desiredSeparation(:,i),noiseMean(:,i),noiseStd(:,i));
                 vehicles = [vehicles, vehicle];
             end
             obj.vehicles = vehicles;
@@ -117,15 +117,31 @@ classdef Platoon < handle
                 end            
         end
         
-        function outputArg = generateNoises(obj,t,dt)
+        function outputArg = generateNoises(obj)
             for i = 1:1:obj.numOfVehicles
-                obj.vehicles(i).generateNoise(t,dt);
+                obj.vehicles(i).generateNoise();
             end
         end
 
-        function outputArg = computeControlInputs(obj,t,dt)
+        function outputArg = getPlatooningErrors1(obj)
+            leaderStates = obj.vehicles(1).states;  % x_0,v_0,a_0
             for i = 1:1:obj.numOfVehicles
-                obj.vehicles(i).computeControlInputs(t,dt);
+                neighborInformation = [];
+                
+                obj.vehicles(i).getPlatooningErrors1(leaderStates);
+            end
+        end
+
+        function outputArg = getPlatooningErrors2(obj)
+            leaderStates = obj.vehicles(1).states;  % x_0,v_0,a_0
+            for i = 1:1:obj.numOfVehicles
+                obj.vehicles(i).getPlatooningErrors2(leaderStates);
+            end
+        end
+
+        function outputArg = computeControlInputs(obj,t)
+            for i = 1:1:obj.numOfVehicles
+                obj.vehicles(i).computeControlInputs(t);
             end
         end
 

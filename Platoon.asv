@@ -123,6 +123,20 @@ classdef Platoon < handle
             end
         end
 
+        function outputArg = getPlatooningErrors2(obj,t,dt)
+            leadersState = % x_0,v_0,
+            for i = 1:1:obj.numOfVehicles
+                
+                obj.vehicles(i).getPlatooningErrors(t,dt);
+            end
+        end
+
+        function outputArg = computeControlInputs(obj,t,dt)
+            for i = 1:1:obj.numOfVehicles
+                obj.vehicles(i).computeControlInputs(t,dt);
+            end
+        end
+
         function totalError = update(obj,t,dt)
             for i = 1:1:obj.numOfVehicles
                 obj.vehicles(i).update(t,dt);
