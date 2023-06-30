@@ -22,7 +22,10 @@ classdef Vehicle < handle
 
         % state history
         stateHistory = []
-       
+
+        % Predefined controls
+        plannedControls = [] % matrix of paris [t_i,u_i]
+
         % GeometricProperties (for plotting)          
         inNeighbors = []
         outNeighbors = []
@@ -137,9 +140,46 @@ classdef Vehicle < handle
             end
             
         end
-        
+
+
+
+        function outputArg = generateNoise(obj,t,dt)
+
+            if obj.vehicleIndex==1
+                w = 0; % Leader is not affected by the noise.
+            else 
+                w = obj.noiseMean + obj.noiseStd.*randn(3,1);
+            end
+
+            obj.noise = w;
+
+            %%%% Some old code
+%             stepSize = 1;
+%             if w < obj.noise - stepSize
+%                 w = obj.noise - stepSize;
+%             elseif w > obj.noise + stepSize
+%                 w = obj.noise + stepSize;
+%             end
+
+        end
+
+
+        function outputArg = computeControlInputs(obj,t,dt)
+            % Leader's control (from planned)
+            if obj.vehicleIndex==1
+                
+                if obj.plannedControls(1,1)==t
+                    obj.controlInput = obj.plannedControls(1,2);
+                    obj.plannedControls = obj.plannedControls(2:end,:);
+                else
+                    obj.controlInput = 0;
+                end
+            
+            end
+        end
+
         % Update the state values of the system dynamics
-        function outputArg = update(obj,dt)
+        function outputArg = update(obj,t,dt)
             
             A = [0 1 0; 0 0 1; 0 0 0];
             B = [0 0 1]';
@@ -151,21 +191,6 @@ classdef Vehicle < handle
             
             % Collect all the state points at each step
             obj.stateHistory = [obj.stateHistory, newStates];
-
-        end
-
-        function outputArg = generateNoise(obj)
-            %obj.noise = obj.noiseMean + obj.noiseStd*randn(1,1);
-            w = obj.noiseMean + obj.noiseStd.*randn(3,1);
-            
-%             stepSize = 1;
-%             if w < obj.noise - stepSize
-%                 w = obj.noise - stepSize;
-%             elseif w > obj.noise + stepSize
-%                 w = obj.noise + stepSize;
-%             end
-
-            obj.noise = w;
 
         end
 

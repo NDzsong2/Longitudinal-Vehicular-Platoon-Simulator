@@ -67,20 +67,20 @@ classdef Network < handle
         end
 
 
-        function outputArg = update(obj,dt)
+        function outputArg = update(obj,t,dt)
             
             % Do the necessary computations/generations to generate the signals to initiate the program
             for k = 1:1:obj.numOfPlatoons
 
                 % Generate the noises
-                obj.platoons(k).generateNoises();                      % generate the noises associated with the platoons.
+                obj.platoons(k).generateNoises(t,dt);                      % generate the noises associated with the platoons.
 
                 % Compute all the controls 
-%                 obj.platoons(k).computeControlInputs(obj.platoons,dt); % compute all the self-controls associated with the platoons.
+                obj.platoons(k).computeControlInputs(t,dt); % compute all the self-controls associated with the platoons.
 
                 % Update the states
-                obj.platoons(k).update(dt);
-                
+                obj.platoons(k).update(t,dt);
+
             end
 
 %             % Update the cross-chain control outputs based on the computed cross-chain control inputs)
@@ -133,6 +133,42 @@ classdef Network < handle
             end
 
         end
+
+        
+        function outputArg = generateLeadersControlProfiles(obj,dt,tVals,vVals)
+            % Here we basically have to derive each leader's control trajectory
+            
+            % aVals computation
+            aVals = []; 
+            for k = 1:1:(length(tVals)-1)
+                v_1 = vVals(k);     
+                t_1 = tVals(k);
+                v_2 = vVals(k+1);   
+                t_2 = tVals(k+1);
+                a_1 = (v_2-v_1)/(t_2-t_1);
+                aVals = [aVals, a_1];
+            end
+            aVals = [aVals, 0];
+
+            % uVals computation
+            uVals= [];
+            a_0 = 0; 
+            for k = 1:1:length(tVals)
+                a_1 = aVals(k);     
+                u_1 = (a_1-a_0)/dt;
+                a_0 = a_1;
+                uVals = [uVals,u_1];
+            end
+
+            % Setting initial velocities
+            for k = 1:1:obj.numOfPlatoons
+                obj.platoons(k).vehicles(1).states(2) = vVals(1);
+                obj.platoons(k).vehicles(1).plannedControls = [tVals',uVals'];
+            end
+           
+        
+        end
+
 
 
         

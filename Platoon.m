@@ -117,15 +117,21 @@ classdef Platoon < handle
                 end            
         end
         
-        function outputArg = generateNoises(obj)
+        function outputArg = generateNoises(obj,t,dt)
             for i = 1:1:obj.numOfVehicles
-                obj.vehicles(i).generateNoise();
+                obj.vehicles(i).generateNoise(t,dt);
             end
         end
 
-        function totalError = update(obj,dt)
+        function outputArg = computeControlInputs(obj,t,dt)
             for i = 1:1:obj.numOfVehicles
-                obj.vehicles(i).update(dt);
+                obj.vehicles(i).computeControlInputs(t,dt);
+            end
+        end
+
+        function totalError = update(obj,t,dt)
+            for i = 1:1:obj.numOfVehicles
+                obj.vehicles(i).update(t,dt);
             end
         end
         

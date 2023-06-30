@@ -17,12 +17,15 @@ classdef Vehicle < handle
         des_states           % desired signals to be tracked
         states               % x_ik
         noise                % v_ik
-        controlInputs
+        controlInput
         outputs
 
         % state history
-        stateHistory = zeros(3,1000000)
-       
+        stateHistory = []
+
+        % Predefined controls
+        plannedControls = [] % matrix of paris [t_i,u_i]
+
         % GeometricProperties (for plotting)          
         inNeighbors = []
         outNeighbors = []
@@ -54,7 +57,7 @@ classdef Vehicle < handle
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Initial controller values
 
-            obj.controlInputs = 0.01 * ones(1);
+            obj.controlInput = 5 * ones(1);
             obj.outputs = zeros(1);
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
@@ -122,58 +125,72 @@ classdef Vehicle < handle
             
            
                 % Draw the car body
-            % poly1 = polyshape([pos, (pos-length), (pos-length), pos],[0.5, 0.5, 0.5+height1, 0.5+height1]+8*(obj.platoonIndex-1)*[1, 1, 1, 1]);
-            poly1 = polyshape([pos, (pos-length), (pos-length), pos],[0.5, 0.5, 0.5+height1, 0.5+height1]);
-            obj.graphics(1) = plot(poly1,'FaceColor','r');
-
-%             poly2 = polyshape([0.5*(pos+0.5*(pos+(pos-length))), 0.5*((pos-length)+0.5*(pos+(pos-length))),...
-%                 0.5*((pos-length)+0.5*(pos+(pos-length))), 0.5*(pos+0.5*(pos+(pos-length)))],...
-%                 [0.5+height1, 0.5+height1, (0.5+height1)+height2, (0.5+height1)+height2]+8*(obj.platoonIndex-1)*[1, 1, 1, 1]);
-            poly2 = polyshape([0.5*(pos+0.5*(pos+(pos-length))), 0.5*((pos-length)+0.5*(pos+(pos-length))),...
+                poly1 = polyshape([pos, (pos-length), (pos-length), pos],[0.5, 0.5, 0.5+height1, 0.5+height1]);
+                obj.graphics(1) = plot(poly1,'FaceColor','r');
+                
+                poly2 = polyshape([0.5*(pos+0.5*(pos+(pos-length))), 0.5*((pos-length)+0.5*(pos+(pos-length))),...
                 0.5*((pos-length)+0.5*(pos+(pos-length))), 0.5*(pos+0.5*(pos+(pos-length)))],...
                 [0.5+height1, 0.5+height1, (0.5+height1)+height2, (0.5+height1)+height2]);
-            obj.graphics(2) = plot(poly2,'FaceColor','r');
+                obj.graphics(2) = plot(poly2,'FaceColor','r');
             
-            % Draw two wheels
-%             viscircles([0.5*((pos-length)+0.5*(pos+(pos-length))), 0.3+8*(obj.platoonIndex-1)], 0.3,'Color','k');
-%             viscircles([0.5*(pos+0.5*(pos+(pos-length))), 0.3+8*(obj.platoonIndex-1)], 0.3,'Color','k');
-
-            obj.graphics(3) = viscircles([0.5*((pos-length)+0.5*(pos+(pos-length))), 0.3], radius,'Color','k');
-            obj.graphics(4) = viscircles([0.5*(pos+0.5*(pos+(pos-length))), 0.3], radius,'Color','k');
-
+                % Draw two wheels
+                obj.graphics(3) = viscircles([0.5*((pos-length)+0.5*(pos+(pos-length))), 0.3], radius,'Color','k');
+                obj.graphics(4) = viscircles([0.5*(pos+0.5*(pos+(pos-length))), 0.3], radius,'Color','k');
 
             end
             
         end
-        
+
+
+
+        function outputArg = generateNoise(obj,t,dt)
+
+            if obj.vehicleIndex==1
+                w = 0; % Leader is not affected by the noise.
+            else 
+                w = obj.noiseMean + obj.noiseStd.*randn(3,1);
+            end
+
+            obj.noise = w;
+
+            %%%% Some old code
+%             stepSize = 1;
+%             if w < obj.noise - stepSize
+%                 w = obj.noise - stepSize;
+%             elseif w > obj.noise + stepSize
+%                 w = obj.noise + stepSize;
+%             end
+
+        end
+
 
         % Update the state values of the system dynamics
-        function outputArg = update(obj,dt)
+        function outputArg = update(obj,t,dt)
             
-            A = [0 1 0;
-                0 0 1;
-                0 0 0];
+            A = [0 1 0; 0 0 1; 0 0 0];
             B = [0 0 1]';
-            updateValue = A * obj.states + B * obj.controlInputs + obj.noise;
-            newStates = obj.states + dt * (updateValue);
-            obj.states = newStates;            % testing
+
+            % Leader's control (from planned)
+            if obj.vehicleIndex==1
+                obj.noise = 0; % Leader is not affected by the noise.
+                if obj.plannedControls(1,1)==t
+                    obj.controlInput = obj.plannedControls(1,2);
+                    obj.plannedControls = obj.plannedControls(2:end,:);
+                else
+                    obj.controlInput = 0;
+                end
+            else
+                obj.noise = 0;
+                obj.controlInput = 0;
+            end
+
+            updateValue = A*obj.states + B*obj.controlInput + obj.noise;
+            
+            newStates = obj.states + dt*(updateValue);
+            obj.states = newStates;                     
             
             % Collect all the state points at each step
             obj.stateHistory = [obj.stateHistory, newStates];
-        end
-
-
-        function outputArg = generateNoise(obj)
-            %obj.noise = obj.noiseMean + obj.noiseStd*randn(1,1);
-            w = obj.noiseMean + obj.noiseStd*randn(1);
-            
-            stepSize = 1;
-            if w < obj.noise - stepSize
-                w = obj.noise - stepSize;
-            elseif w > obj.noise + stepSize
-                w = obj.noise + stepSize;
-            end
-            obj.noise = w;
 
         end
 
