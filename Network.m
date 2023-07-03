@@ -76,11 +76,12 @@ classdef Network < handle
                 obj.platoons(k).generateNoises();
 
                 % Compute platooning errors
-                obj.platoons(k).getPlatooningErrors1();
-                obj.platoons(k).getPlatooningErrors2();
+                obj.platoons(k).computePlatooningErrors1();
+                %obj.platoons(k).computePlatooningErrors2();
 
                 % Compute all the controls 
-                obj.platoons(k).computeControlInputs(t); % compute all the self-controls associated with the platoons.
+                obj.platoons(k).computeControlInputs1(t); 
+                %obj.platoons(k).computeControlInputs2(t); 
 
                 % Update the states
                 obj.platoons(k).update(t,dt);

@@ -12,9 +12,14 @@ classdef Vehicle < handle
         vehicleParameters
         noiseMean
         noiseStd
+
+        % ControllerGains
+        controllerGains1 = []
+        controllerGains2 = []
         
         % States
-        desiredSeparation    
+        desiredSeparation    %From the leader
+        desiredSeparations   %From all others
         states               % x_ik
         noise                % v_ik
         controlInput
@@ -23,6 +28,9 @@ classdef Vehicle < handle
 
         % state history
         stateHistory = []
+
+        % error history
+        errorHistory = []
 
         % Predefined controls
         plannedControls = [] % matrix of paris [t_i,u_i]
@@ -98,6 +106,9 @@ classdef Vehicle < handle
 
             obj.graphics(3) = viscircles([0.5*((pos-length)+0.5*(pos+(pos-length))), 0.3], radius,'Color','k');
             obj.graphics(4) = viscircles([0.5*(pos+0.5*(pos+(pos-length))), 0.3], radius,'Color','k');
+
+            % Vehicle number
+            obj.graphics(5) = text(pos,0.2,num2str(obj.vehicleIndex));
         end
 
 
@@ -137,7 +148,9 @@ classdef Vehicle < handle
                 % Draw two wheels
                 obj.graphics(3) = viscircles([0.5*((pos-length)+0.5*(pos+(pos-length))), 0.3], radius,'Color','k');
                 obj.graphics(4) = viscircles([0.5*(pos+0.5*(pos+(pos-length))), 0.3], radius,'Color','k');
-
+                
+                % Vehicle number
+                obj.graphics(5) = text(pos,0,num2str(obj.vehicleIndex));
             end
             
         end
@@ -164,28 +177,91 @@ classdef Vehicle < handle
 
         end
 
-        function outputArg = getPlatooningErrors1(obj,leaderStates)
-            separationFromLeader = obj.desiredSeparation; 
-            obj.errors = obj.states - leaderStates + [separationFromLeader;0;0];
+        function outputArg = computePlatooningErrors1(obj,leaderStates,neighborInformation)
+
+            locationError = 0;
+            velocityError = 0;
+
+            for jInd = 1:1:length(obj.inNeighbors)
+
+                j = obj.inNeighbors(jInd);
+                k_ijBar = obj.controllerGains1{j};
+                d_ij = obj.desiredSeparations(j);
+                X_j = neighborInformation{j};
+
+                locationError_j = k_ijBar*(obj.states(1)-X_j(1)-d_ij);
+                locationError = locationError + locationError_j;
+
+                velocityError_j = k_ijBar*(obj.states(2)-X_j(2));
+                velocityError = velocityError + velocityError_j;
+                
+            end
+
+            accelerationError = obj.states(3)-leaderStates(3); %a_i-a_0
+
+            newErrors = [locationError;velocityError;accelerationError];
+
+            obj.errors = newErrors;
+            obj.errorHistory = [obj.errorHistory, newErrors];
+
         end
 
-        function outputArg = getPlatooningErrors2(obj,leaderStates)
+        function outputArg = computePlatooningErrors2(obj,leaderStates)
             separationFromLeader = obj.desiredSeparation; 
-            obj.errors = obj.states - leaderStates + [separationFromLeader;0;0];
+            newErrors = obj.states - leaderStates + [separationFromLeader;0;0];
+            obj.errors = newErrors;
+            obj.errorHistory = [obj.errorHistory, newErrors];
         end
 
 
-        function outputArg = computeControlInputs(obj,t)
-            % Leader's control (from planned)
-            if obj.vehicleIndex==1
+        function outputArg = computeControlInputs1(obj,t)
+            
+            if obj.vehicleIndex==1  % Leader's control (from planned)
                 
                 if obj.plannedControls(1,1)==t
                     obj.controlInput = obj.plannedControls(1,2);
-                    obj.plannedControls = obj.plannedControls(2:end,:);
+                    obj.plannedControls = obj.plannedControls(2:end,:); % Delete the executed planned control
                 else
                     obj.controlInput = 0;
                 end
+
+            else                    % Followers control (based on errors) under Error-Dynamics - I
+                
+                i = obj.vehicleIndex;
+                L_ii = obj.controllerGains1{i};
+                e_i = obj.errors;
+                obj.controlInput = L_ii*e_i;
+
+            end
+        end
+
+        function outputArg = computeControlInputs2(obj,t,neighborInformation)
             
+            if obj.vehicleIndex==1  % Leader's control (from planned)
+                
+                if obj.plannedControls(1,1)==t
+                    obj.controlInput = obj.plannedControls(1,2);
+                    obj.plannedControls = obj.plannedControls(2:end,:); % Delete the executed planned control
+                else
+                    obj.controlInput = 0;
+                end
+
+            else                    % Followers control (based on errors) under Error-Dynamics - II
+               
+                i = obj.vehicleIndex;
+                L_ii = obj.controllerGains2{i};
+                e_i = obj.errors;
+                controlInput = L_ii*e_i;
+                for jInd = 1:1:length(obj.inNeighbors)
+                    j = obj.inNeighbors(jInd);
+                    if j~=1
+                        L_ij = obj.controllerGains2{j};
+                        e_j = neighborInformation{j};
+                        controlInput = controlInput + L_ij*(e_i - e_j);
+                    end 
+                end
+                obj.controlInput = controlInput;
+                
             end
         end
 
