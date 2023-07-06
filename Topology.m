@@ -16,12 +16,15 @@ classdef Topology < handle
 
     methods
 
-        function obj = Topology(n_k)
+        function obj = Topology(n_k,startNodes,endNodes,nodeNames)
+            if nargin == 1
 
-%             [startNodes,endNodes,nodeNames] = obj.generateAUniformTopology(n_k);
-%             [startNodes,endNodes,nodeNames] = obj.generateARandomTopology(n_k);
-            [startNodes,endNodes,nodeNames] = obj.generateABlankTopology(n_k);
+%                 [startNodes,endNodes,nodeNames] = obj.generateAUniformTopology(n_k);
+                [startNodes,endNodes,nodeNames] = obj.generateARandomTopology(n_k);
+%                 [startNodes,endNodes,nodeNames] = obj.generateABlankTopology(n_k);
+%                 [startNodes,endNodes,nodeNames] = obj.generateAFullyConnectedTopology(n_k);
 
+            end
             obj.startNodes = startNodes;
             obj.endNodes = endNodes; 
             obj.numOfNodes = n_k;
@@ -79,6 +82,21 @@ classdef Topology < handle
                 nodeNames{i} = num2str(i-1);
                 startNodes = [startNodes,1];
                 endNodes = [endNodes,i];
+            end
+        end
+
+        function [startNodes,endNodes,nodeNames] = generateAFullyConnectedTopology(obj,NBar)
+            startNodes = [];
+            endNodes = [];
+            for i = 1:1:NBar
+                nodeNames{i} = num2str(i-1);
+                % From node i, there can be links going to all other NBar nodes 
+                for j = 1:1:NBar
+                    if j ~= 1 && j~=i 
+                        startNodes = [startNodes,i];
+                        endNodes = [endNodes,j];
+                    end
+                end
             end
         end
 

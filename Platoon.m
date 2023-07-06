@@ -84,6 +84,14 @@ classdef Platoon < handle
             end
         end
 
+
+        function outputArg = loadPassivityIndices(obj,nuVals,rhoVals)
+            for i = 2:1:obj.numOfVehicles
+                obj.vehicles(i).loadPassivityIndices(nuVals(i-1),rhoVals(i-1));
+            end
+        end
+
+
         function outputArg = drawPlatoon(obj,figNum)
             figure(figNum); hold on; 
 
@@ -110,7 +118,7 @@ classdef Platoon < handle
                 startPos = obj.vehicles(startVehicleIndex).states(1) - obj.vehicles(startVehicleIndex).vehicleParameters(2)/2;
                 endPos = obj.vehicles(endVehicleIndex).states(1) - obj.vehicles(endVehicleIndex).vehicleParameters(2)/2;
                 midPos = (startPos + endPos)/2;
-                midPointHeight = -3*sign(startPos-endPos)+0.05*abs(startPos-endPos);
+                midPointHeight = -3*sign(startPos-endPos)+0.05*abs(startPos-endPos); % 4
 
                 startPosY = obj.vehicles(startVehicleIndex).vehicleParameters(2)*3/8;
                 endPosY = obj.vehicles(endVehicleIndex).vehicleParameters(2)*3/8;
@@ -149,7 +157,7 @@ classdef Platoon < handle
                         startPos = obj.vehicles(startVehicleIndex).states(1) - obj.vehicles(startVehicleIndex).vehicleParameters(2)/2;
                         endPos = obj.vehicles(endVehicleIndex).states(1) - obj.vehicles(endVehicleIndex).vehicleParameters(2)/2;
                         midPos = (startPos + endPos)/2;
-                        midPointHeight = -3*sign(startPos-endPos)+0.05*abs(startPos-endPos);
+                        midPointHeight = -3*sign(startPos-endPos)+0.05*abs(startPos-endPos); % 4
                         
                         startPosY = obj.vehicles(startVehicleIndex).vehicleParameters(2)*3/8;
                         endPosY = obj.vehicles(endVehicleIndex).vehicleParameters(2)*3/8;
@@ -158,12 +166,14 @@ classdef Platoon < handle
                     end
                 end            
         end
-        
+
+
         function outputArg = generateNoises(obj)
             for i = 1:1:obj.numOfVehicles
                 obj.vehicles(i).generateNoise();
             end
         end
+
 
         function outputArg = computePlatooningErrors1(obj)
             leaderStates = obj.vehicles(1).states;  % x_0,v_0,a_0
@@ -177,6 +187,7 @@ classdef Platoon < handle
             end
         end
 
+
         function outputArg = computePlatooningErrors2(obj)
             leaderStates = obj.vehicles(1).states;  % x_0,v_0,a_0
             for i = 2:1:obj.numOfVehicles
@@ -184,11 +195,13 @@ classdef Platoon < handle
             end
         end
 
+
         function outputArg = computeControlInputs1(obj,t)
             for i = 1:1:obj.numOfVehicles
                 obj.vehicles(i).computeControlInputs1(t);
             end
         end
+
 
         function outputArg = computeControlInputs2(obj,t)
             for i = 1:1:obj.numOfVehicles
@@ -201,10 +214,483 @@ classdef Platoon < handle
             end
         end
 
+
         function totalError = update(obj,t,dt)
+            totalError = zeros(3,1);
             for i = 1:1:obj.numOfVehicles
-                obj.vehicles(i).update(t,dt);
+                vehicleError = obj.vehicles(i).update(t,dt);
+                totalError = totalError + vehicleError;
             end
+        end
+
+
+        %% Centralized Controller Synthesis using the First Error Dynamics Formulation
+        function status = centralizedControllerSynthesis1(obj)
+            
+            % Number of follower vehicles
+            N = obj.numOfVehicles-1; 
+
+            % Whether to use a soft or hard graph constraint
+            isSoft = 1;
+
+            % Desired noise attenuation level: L2Gain from w to e
+            gammaSqBar = 0.1;
+
+            % Passivity indices type
+            passivityInfoType = 2;
+
+            if passivityInfoType==1
+                % Load Passivity Indices - I
+                tau = -sqrt(2)/4;
+                nuVals = tau*ones(N,1);
+                rhoVals = tau*ones(N,1);
+                obj.loadPassivityIndices(nuVals,rhoVals);
+            else
+                % Load Passivity Indices - II
+                rho = -1/2;
+                nuVals = 0*ones(N,1);
+                rhoVals = rho*ones(N,1);
+                obj.loadPassivityIndices(nuVals,rhoVals);
+            end
+
+            % Creating the adgacency matrix, null matrix and cost matrix
+            G = obj.topology.graph
+            A = adjacency(G)
+            for i = 1:1:N
+                for j = 1:1:N
+                    % Structure of K_ij (which is a 3x3 matrix) should be embedded here
+                    if i~=j
+                        if A(i+1,j+1)==1
+                            adjMatBlock{i,j} = [0,0,0; 0,0,1; 0,0,0];
+                            nullMatBlock{i,j} = [1,1,1; 1,1,0; 1,1,1];
+                            costMatBlock{i,j} = 1*[0,0,0; 0,0,1; 0,0,0];
+                        else
+                            adjMatBlock{i,j} = [0,0,0; 0,0,0; 0,0,0];
+                            nullMatBlock{i,j} = [1,1,1; 1,1,0; 1,1,1];
+                            costMatBlock{i,j} = 100*[0,0,0; 0,0,1; 0,0,0];
+                        end
+                    else
+                        adjMatBlock{i,j} = [0,0,0; 0,0,1; 1,1,1];
+                        nullMatBlock{i,j} = [1,1,1; 1,1,0; 0,0,0];
+                        costMatBlock{i,j} = 0.01*[0,0,0; 0,0,1; 1,1,1];
+                    end
+                end 
+            end
+            adjMatBlock = cell2mat(adjMatBlock)
+            nullMatBlock = cell2mat(nullMatBlock)
+            costMatBlock = cell2mat(costMatBlock)
+            
+
+            % Set up the LMI problem
+            solverOptions = sdpsettings('solver','mosek');
+            I = eye(3*N);
+            I_n = eye(3);
+            O = zeros(3*N);
+
+            Q = sdpvar(3*N,3*N,'full'); 
+            P = sdpvar(N,N,'diagonal');
+            gammaSq = sdpvar(1);
+            
+            X_p_11 = [];
+            X_p_12 = [];
+            X_12 = [];
+            X_p_22 = [];
+            for i = 1:1:N
+                nu_i = obj.vehicles(i+1).nu;
+                rho_i = obj.vehicles(i+1).rho;
+
+                X_p_11 = blkdiag(X_p_11,-nu_i*P(i,i)*I_n);
+                X_p_12 = blkdiag(X_p_12,0.5*P(i,i)*I_n);
+                X_12 = blkdiag(X_12,(-1/(2*nu_i))*I_n);
+                X_p_22 = blkdiag(X_p_22,-rho_i*P(i,i)*I_n);
+            end
+            X_p_21 = X_p_12';
+            X_21 = X_12';
+            
+
+            % Objective Function
+            costFun = norm(Q.*costMatBlock,1);
+
+            % Budget Constraints
+            con0 = costFun <= 1000000*obj.numOfVehicles;
+
+            % Basic Constraints
+            con1 = P >= 0;
+            con2 = gammaSq >= 0;
+            con3 = gammaSq <= gammaSqBar;
+            con4 = trace(P)==1;
+
+            if passivityInfoType==1
+                % LMI Condition - I
+                DMat = [X_p_11, O; O, I];
+                MMat = [Q, X_p_11; I, O];
+                ThetaMat = [-X_21*Q-Q'*X_12-X_p_22, -X_21*X_p_11; -X_p_11'*X_12, gammaSq*I];
+                con5 = [DMat, MMat; MMat', ThetaMat] >= 0;
+            else    
+                % LMI Condition - II (when nu_i = 0, for all i)
+                DMat = [I];
+                MMat = [I, O];
+                ThetaMat = [-Q-Q'-X_p_22, -X_p_21; -X_p_12, gammaSq*I];
+                con5 = [DMat, MMat; MMat', ThetaMat] >= 0;
+            end
+
+            
+            % Structural constraints
+            con6 = Q.*(nullMatBlock==1)==O  % Structural limitations (due to the format of the control law)
+            con7 = Q.*(adjMatBlock==0)==O;  % Graph structure : hard constraint
+
+            % Total Cost and Constraints
+            if isSoft
+                cons = [con0,con1,con2,con3,con4,con5,con6]; % Without the hard graph constraint con7
+                costFun = 1*costFun + 1*gammaSq; % soft 
+            else
+                cons = [con0,con1,con2,con3,con4,con5,con6,con7]; % With the hard graph constraint con7
+                costFun = 1*costFun + 1*gammaSq; % hard (same as soft)
+            end
+            
+            sol = optimize(cons,[costFun],solverOptions);
+            status = sol.info
+            
+            PVal = value(P)
+            costFunVal = value(costFun)
+            gammaSqVal = value(gammaSq)
+
+            Q = value(Q);
+            X_p_11Val = value(X_p_11);
+            X_p_21Val = value(X_p_21);
+
+            if passivityInfoType==1
+                M_neVal = X_p_11Val\Q
+            else
+                M_neVal = X_p_21Val\Q
+            end
+            
+            % Obtaining K_ij blocks
+            M_neVal(nullMatBlock==0) = 0;
+            maxNorm = 0;
+            for i = 1:1:N
+                for j = 1:1:N
+                    K{i,j} = M_neVal(3*(i-1)+1:3*i , 3*(j-1)+1:3*j); % (i,j)-th (3 x 3) block
+                    normVal = max(max(abs(K{i,j})));
+                    if normVal>maxNorm & i~=j
+                        maxNorm = normVal;
+                    end
+                end
+            end
+            
+            % filtering out small interconnections
+            for i=1:1:N
+                for j=1:1:N
+                    
+                    if i~=j
+                        if isSoft
+                            K{i,j}(abs(K{i,j})<0.001*maxNorm) = 0;                       
+                        else
+                            if A(i+1,j+1)==0
+                                K{i,j} = zeros(3);
+                            end
+                        end
+                    end
+                    
+                end
+            end
+
+%             obj.loadTopologyFromK1(K);
+            obj.loadControllerGains1(K);
+
+        end
+
+
+        function outputArg = loadControllerGains1(obj,K)
+            
+            N = obj.numOfVehicles-1;
+
+            % Loading L_ij values from K
+            for i = 1:1:N
+                sumK_ij = zeros(3,3);
+                for j = 1:1:N
+                    if j~=i
+                        sumK_ij = sumK_ij + K{i,j};
+                        L{i,j} = -K{i,j}(2,3);   %[0,0,0; 0,0,\bar{k}_{ij}; 0,0,0]
+                    end
+                end                
+                K_i0 = K{i,i} + sumK_ij;        %[0,0,0; 0,0,\bar{k}_{i0}; l_ii^x,l_ii^v,l_ii^a]
+                L0{i} = K_i0(2,3);              
+                L{i,i} = K_i0(3,:);             
+            end
+            
+            % Loading controller gains from L_ij values
+            for i = 1:1:N
+                obj.vehicles(i+1).controllerGains1{1} = L0{i};
+                obj.vehicles(i+1).controllerGains1{i+1} = L{i,i};
+                for j = 1:1:N
+                    if j~=i && norm(L{i,j})> 0
+                        obj.vehicles(i+1).controllerGains1{j+1} = L{i,j};
+                    end
+                end
+            end
+
+        end
+
+
+        function outputArg = loadTopologyFromK1(obj,K)
+
+            NBar = obj.numOfVehicles;
+
+            startNodes = [];
+            endNodes = [];
+            for i = 1:1:NBar
+                nodeNames{i} = num2str(i-1);
+                for j = 1:1:NBar
+                    if j ~= 1 && j~=i 
+                        if i == 1
+                            startNodes = [startNodes,i];
+                            endNodes = [endNodes,j];
+                        elseif norm(K{i-1,j-1})> 0
+                            startNodes = [startNodes,j];
+                            endNodes = [endNodes,i];
+                        end
+                    end
+                end
+
+            end
+
+            obj.topology = Topology(NBar,startNodes,endNodes,nodeNames);
+            obj.updateNeighbors();
+
+        end
+
+        %% Centralized Controller Synthesis using the Second Error Dynamics Formulation
+        function status = centralizedControllerSynthesis2(obj)
+            
+            % Number of follower vehicles
+            N = obj.numOfVehicles-1; 
+
+            % Whether to use a soft or hard graph constraint
+            isSoft = 1;
+
+            % Desired noise attenuation level: L2Gain from w to e
+            gammaSqBar = 0.1;
+
+            % Passivity indices type
+            passivityInfoType = 2;
+
+            if passivityInfoType==1
+                % Load Passivity Indices - I
+                tau = -sqrt(3)/4;
+                nuVals = tau*ones(N,1);
+                rhoVals = tau*ones(N,1);
+                obj.loadPassivityIndices(nuVals,rhoVals);
+            else
+                % Load Passivity Indices - II
+                rho = -sqrt(2)/2;
+                nuVals = 0*ones(N,1);
+                rhoVals = rho*ones(N,1);
+                obj.loadPassivityIndices(nuVals,rhoVals);
+            end
+
+            % Creating the adgacency matrix, null matrix and cost matrix
+            G = obj.topology.graph
+            A = adjacency(G)
+            for i = 1:1:N
+                for j = 1:1:N
+                    % Structure of K_ij (which is a 3x3 matrix) should be embedded here
+                    if i~=j
+                        if A(i+1,j+1)==1
+                            adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
+                            nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
+                            costMatBlock{i,j} = 1*[0,0,0; 0,0,0; 1,1,1];
+                        else
+                            adjMatBlock{i,j} = [0,0,0; 0,0,0; 0,0,0];
+                            nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
+                            costMatBlock{i,j} = 100*[0,0,0; 0,0,0; 1,1,1];
+                        end
+                    else
+                        adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
+                        nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
+                        costMatBlock{i,j} = 0.01*[0,0,0; 0,0,0; 1,1,1];
+                    end
+                end 
+            end
+            adjMatBlock = cell2mat(adjMatBlock)
+            nullMatBlock = cell2mat(nullMatBlock)
+            costMatBlock = cell2mat(costMatBlock)
+            
+
+            % Set up the LMI problem
+            solverOptions = sdpsettings('solver','mosek');
+            I = eye(3*N);
+            I_n = eye(3);
+            O = zeros(3*N);
+
+            Q = sdpvar(3*N,3*N,'full'); 
+            P = sdpvar(N,N,'diagonal');
+            gammaSq = sdpvar(1);
+            
+            X_p_11 = [];
+            X_p_12 = [];
+            X_12 = [];
+            X_p_22 = [];
+            for i = 1:1:N
+                nu_i = obj.vehicles(i+1).nu;
+                rho_i = obj.vehicles(i+1).rho;
+
+                X_p_11 = blkdiag(X_p_11,-nu_i*P(i,i)*I_n);
+                X_p_12 = blkdiag(X_p_12,0.5*P(i,i)*I_n);
+                X_12 = blkdiag(X_12,(-1/(2*nu_i))*I_n);
+                X_p_22 = blkdiag(X_p_22,-rho_i*P(i,i)*I_n);
+            end
+            X_p_21 = X_p_12';
+            X_21 = X_12';
+            
+
+            % Objective Function
+            costFun = norm(Q.*costMatBlock,1);
+
+            % Budget Constraints
+            con0 = costFun <= 1000000*obj.numOfVehicles;
+
+            % Basic Constraints
+            con1 = P >= 0;
+            con2 = gammaSq >= 0;
+            con3 = gammaSq <= gammaSqBar;
+            con4 = trace(P)==1;
+
+            if passivityInfoType==1
+                % LMI Condition - I
+                DMat = [X_p_11, O; O, I];
+                MMat = [Q, X_p_11; I, O];
+                ThetaMat = [-X_21*Q-Q'*X_12-X_p_22, -X_21*X_p_11; -X_p_11'*X_12, gammaSq*I];
+                con5 = [DMat, MMat; MMat', ThetaMat] >= 0;
+            else
+                % LMI Condition - II (when nu_i = 0, for all i)
+                DMat = [I];
+                MMat = [I, O];
+                ThetaMat = [-Q-Q'-X_p_22, -X_p_21; -X_p_12, gammaSq*I];
+                con5 = [DMat, MMat; MMat', ThetaMat] >= 0;
+            end
+
+            % Structural constraints
+            con6 = Q.*(nullMatBlock==1)==O  % Structural limitations (due to the format of the control law)
+            con7 = Q.*(adjMatBlock==0)==O;  % Graph structure : hard constraint
+
+            % Total Cost and Constraints
+            if isSoft
+                cons = [con0,con1,con2,con3,con4,con5,con6]; % Without the hard graph constraint con7
+                costFun = 1*costFun + 1*gammaSq; % soft 
+            else
+                cons = [con0,con1,con2,con3,con4,con5,con6,con7]; % With the hard graph constraint con7
+                costFun = 1*costFun + 1*gammaSq; % hard (same as soft)
+            end
+            
+            sol = optimize(cons,[costFun],solverOptions);
+            status = sol.info
+            
+            PVal = value(P)
+            costFunVal = value(costFun)
+            gammaSqVal = value(gammaSq)
+
+            Q = value(Q);
+            X_p_11Val = value(X_p_11);
+            X_p_21Val = value(X_p_21);
+
+            if passivityInfoType==1
+                M_neVal = X_p_11Val\Q
+            else
+                M_neVal = X_p_21Val\Q
+            end
+            
+            % Obtaining K_ij blocks
+            M_neVal(nullMatBlock==0) = 0;
+            maxNorm = 0;
+            for i = 1:1:N
+                for j = 1:1:N
+                    K{i,j} = M_neVal(3*(i-1)+1:3*i , 3*(j-1)+1:3*j); % (i,j)-th (3 x 3) block
+                    normVal = max(max(abs(K{i,j})));
+                    if normVal>maxNorm & i~=j
+                        maxNorm = normVal;
+                    end
+                end
+            end
+            
+            % filtering out small interconnections
+            for i=1:1:N
+                for j=1:1:N
+                    
+                    if i~=j
+                        if isSoft
+                            K{i,j}(abs(K{i,j})<0.001*maxNorm) = 0;                       
+                        else
+                            if A(i+1,j+1)==0
+                                K{i,j} = zeros(3);
+                            end
+                        end
+                    end
+                    
+                end
+            end
+
+%             obj.loadTopologyFromK2(K);
+            obj.loadControllerGains2(K);
+
+        end
+
+
+        function outputArg = loadControllerGains2(obj,K)
+
+            N = obj.numOfVehicles-1;
+
+            % Loading L_ij values from K
+            for i = 1:1:N
+                sumK_ij = zeros(3,3);
+                for j = 1:1:N
+                    if j~=i
+                        sumK_ij = sumK_ij + K{i,j};
+                        L{i,j} = -K{i,j}(3,:);   %[0,0,0; 0,0,0; l_ij^x,l_ij^v,l_ij^a]
+                    end
+                end                
+                K_i0 = K{i,i} + sumK_ij;
+                L{i,i} = K_i0(3,:);             %[0,0,0; 0,0,0; l_ii^x,l_ii^v,l_ii^a] 
+            end
+            
+            % Loading controller gains from L_ij values
+            for i = 1:1:N
+                obj.vehicles(i+1).controllerGains2{i+1} = L{i,i};
+                for j = 1:1:N
+                    if j~=i && norm(L{i,j})> 0
+                        obj.vehicles(i+1).controllerGains2{j+1} = L{i,j};
+                    end
+                end
+            end
+        
+        end
+
+        
+        function outputArg = loadTopologyFromK2(obj,K)
+
+            NBar = obj.numOfVehicles;
+
+            startNodes = [];
+            endNodes = [];
+            for i = 1:1:NBar
+                nodeNames{i} = num2str(i-1);
+                for j = 1:1:NBar
+                    if j ~= 1 && j~=i 
+                        if i == 1
+                            startNodes = [startNodes,i];
+                            endNodes = [endNodes,j];
+                        elseif norm(K{i-1,j-1})> 0
+                            startNodes = [startNodes,j];
+                            endNodes = [endNodes,i];
+                        end
+                    end
+                end
+
+            end
+
+            obj.topology = Topology(NBar,startNodes,endNodes,nodeNames);
+            obj.updateNeighbors();
+
         end
         
     end

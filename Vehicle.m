@@ -13,6 +13,10 @@ classdef Vehicle < handle
         noiseMean
         noiseStd
 
+        % Passivity Indices
+        nu
+        rho
+
         % ControllerGains
         controllerGains1 = []
         controllerGains2 = []
@@ -65,8 +69,8 @@ classdef Vehicle < handle
             
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             % Initial controller values
-
-            obj.controlInput = 5 * ones(1);
+            obj.errors = zeros(3,1);
+            obj.controlInput = zeros(1);
             obj.outputs = zeros(1);
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
@@ -265,9 +269,12 @@ classdef Vehicle < handle
             end
         end
 
+
         % Update the state values of the system dynamics
-        function outputArg = update(obj,t,dt)
+        function vehicleError = update(obj,t,dt)
             
+            vehicleError = obj.errors;
+
             A = [0 1 0; 0 0 1; 0 0 0];
             B = [0 0 1]';
 
@@ -279,6 +286,12 @@ classdef Vehicle < handle
             % Collect all the state points at each step
             obj.stateHistory = [obj.stateHistory, newStates];
 
+        end
+
+
+        function outputArg = loadPassivityIndices(obj,nu,rho)
+            obj.nu = nu;
+            obj.rho = rho;
         end
 
 
