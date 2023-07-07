@@ -300,7 +300,7 @@ classdef Platoon < handle
                 rho_i = obj.vehicles(i+1).rho;
 
                 X_p_11 = blkdiag(X_p_11,-nu_i*P(i,i)*I_n);
-                X_p_12 = blkdiag(X_p_12,0.5*P(i,i)*I);
+                X_p_12 = blkdiag(X_p_12,0.5*P(i,i)*I_n);
                 X_12 = blkdiag(X_12,(-1/(2*nu_i))*I_n);
                 X_p_22 = blkdiag(X_p_22,-rho_i*P(i,i)*I_n);
             end
@@ -320,6 +320,7 @@ classdef Platoon < handle
             con3 = gammaSq <= gammaSqBar;
             con4 = trace(P)==1;
 
+            M_ze = I;
             if passivityInfoType==1
                 % LMI Condition - I
                 DMat = [X_p_11, O; O, I];
@@ -341,7 +342,7 @@ classdef Platoon < handle
 
             % Total Cost and Constraints
             if isSoft
-                cons = [con1,con2,con4,con5]; % Without the hard graph constraint con7
+                cons = [con0,con1,con2,con3,con4,con5,con6]; % Without the hard graph constraint con7
                 costFun = 1*costFun + 1*gammaSq; % soft 
             else
                 cons = [con0,con1,con2,con3,con4,con5,con6,con7]; % With the hard graph constraint con7
@@ -536,7 +537,7 @@ classdef Platoon < handle
                 rho_i = obj.vehicles(i+1).rho;
 
                 X_p_11 = blkdiag(X_p_11,-nu_i*P(i,i)*I_n);
-                X_p_12 = blkdiag(X_p_12,0.5*P(i,i)*I);
+                X_p_12 = blkdiag(X_p_12,0.5*P(i,i)*I_n);
                 X_12 = blkdiag(X_12,(-1/(2*nu_i))*I_n);
                 X_p_22 = blkdiag(X_p_22,-rho_i*P(i,i)*I_n);
             end

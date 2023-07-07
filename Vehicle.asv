@@ -300,7 +300,7 @@ classdef Vehicle < handle
             
             % Error Dynamics Type
             errorDynamicsType = 1;
-            tau = 1; % Irrespective of this value, both methods seems to lead to rho = -1/2
+            tau = 0.1; % Irrespective of this value, both methods seems to lead to rho = -1/2
             if errorDynamicsType == 1       % When nu = 0, both methods seems to lead to rho = -1/2 
                 A = [0,1,0;0,0,0;0,0,-1/tau];    
             else

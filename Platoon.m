@@ -247,7 +247,7 @@ classdef Platoon < handle
                 obj.loadPassivityIndices(nuVals,rhoVals);
             else
                 % Load Passivity Indices - II
-                rho = -1/2;
+                rho = 1/2;
                 nuVals = 0*ones(N,1);
                 rhoVals = rho*ones(N,1);
                 obj.loadPassivityIndices(nuVals,rhoVals);
@@ -320,6 +320,7 @@ classdef Platoon < handle
             con3 = gammaSq <= gammaSqBar;
             con4 = trace(P)==1;
 
+            M_ze = I;
             if passivityInfoType==1
                 % LMI Condition - I
                 DMat = [X_p_11, O; O, I];
@@ -341,7 +342,7 @@ classdef Platoon < handle
 
             % Total Cost and Constraints
             if isSoft
-                cons = [con0,con1,con2,con3,con4,con5,con6]; % Without the hard graph constraint con7
+                cons = [con1,con2,con5,con6]; % Without the hard graph constraint con7
                 costFun = 1*costFun + 1*gammaSq; % soft 
             else
                 cons = [con0,con1,con2,con3,con4,con5,con6,con7]; % With the hard graph constraint con7
@@ -394,7 +395,8 @@ classdef Platoon < handle
                     
                 end
             end
-
+            
+            K
 %             obj.loadTopologyFromK1(K);
             obj.loadControllerGains1(K);
 
@@ -419,6 +421,9 @@ classdef Platoon < handle
                 L{i,i} = K_i0(3,:);             
             end
             
+            L0
+            L
+
             % Loading controller gains from L_ij values
             for i = 1:1:N
                 obj.vehicles(i+1).controllerGains1{1} = L0{i};
@@ -483,7 +488,7 @@ classdef Platoon < handle
                 obj.loadPassivityIndices(nuVals,rhoVals);
             else
                 % Load Passivity Indices - II
-                rho = -sqrt(2)/2;
+                rho = 1/2; % With local controllers: rho = -1/2  % Without local controllers: rho = -sqrt(2)/2
                 nuVals = 0*ones(N,1);
                 rhoVals = rho*ones(N,1);
                 obj.loadPassivityIndices(nuVals,rhoVals);
@@ -568,6 +573,7 @@ classdef Platoon < handle
                 MMat = [I, O];
                 ThetaMat = [-Q-Q'-X_p_22, -X_p_21; -X_p_12, gammaSq*I];
                 con5 = [DMat, MMat; MMat', ThetaMat] >= 0;
+%                 con5 = -Q-Q'-X_p_22 >= 0;
             end
 
             % Structural constraints
@@ -576,7 +582,7 @@ classdef Platoon < handle
 
             % Total Cost and Constraints
             if isSoft
-                cons = [con0,con1,con2,con3,con4,con5,con6]; % Without the hard graph constraint con7
+                cons = [con1,con2,con3,con5,con6]; % Without the hard graph constraint con7
                 costFun = 1*costFun + 1*gammaSq; % soft 
             else
                 cons = [con0,con1,con2,con3,con4,con5,con6,con7]; % With the hard graph constraint con7
@@ -630,6 +636,7 @@ classdef Platoon < handle
                 end
             end
 
+            K
 %             obj.loadTopologyFromK2(K);
             obj.loadControllerGains2(K);
 
@@ -653,6 +660,8 @@ classdef Platoon < handle
                 L{i,i} = K_i0(3,:);             %[0,0,0; 0,0,0; l_ii^x,l_ii^v,l_ii^a] 
             end
             
+            L
+
             % Loading controller gains from L_ij values
             for i = 1:1:N
                 obj.vehicles(i+1).controllerGains2{i+1} = L{i,i};
