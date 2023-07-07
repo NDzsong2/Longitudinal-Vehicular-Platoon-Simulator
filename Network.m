@@ -21,7 +21,7 @@ classdef Network < handle
 
     methods
 
-        function obj = Network(indexVal,numOfPlatoons,numOfVehicles,parameters,states,des_states,noiseMean,noiseStd)
+        function obj = Network(indexVal,numOfPlatoons,numOfVehicles,parameters,states,desiredSeparation,noiseMean,noiseStd)
 
             obj.networkIndex = indexVal;
             obj.numOfPlatoons = numOfPlatoons;
@@ -30,13 +30,13 @@ classdef Network < handle
             % create the platoons
             platoons = [];
             for k = 1:1:numOfPlatoons
-                platoon = Platoon(k,numOfVehicles(k),parameters{k},states{k},des_states{k},noiseMean{k},noiseStd{k});
+                platoon = Platoon(k,numOfVehicles(k),parameters{k},states{k},desiredSeparation{k},noiseMean{k},noiseStd{k});
                 platoons = [platoons, platoon];
             end
             obj.platoons = platoons;
                         
             obj.time = 0;
-            obj.error = 0;
+            obj.error = [0;0;0];
             obj.cost = 0;
 
         end
@@ -60,45 +60,51 @@ classdef Network < handle
 
             % Plot the 3 topics, i.e., time,error,cost, on the top of the simulator
             obj.graphics(1) = text(posX1+5,posY2-5,['Time: ',num2str(obj.time)],'FontSize',12);
-            obj.graphics(2) = text(posX1+30,posY2-5,['Error: ',num2str(obj.error)],'FontSize',12);
-            obj.graphics(3) = text(posX1+55,posY2-5,['Cost: ',num2str(obj.cost)],'FontSize',12);
+            obj.graphics(2) = text(posX1+30,posY2-5,['Error: ',num2str(round(norm(obj.error),1))],'FontSize',12);
+            obj.graphics(3) = text(posX1+55,posY2-5,['Cost: ',num2str(round(obj.cost,1))],'FontSize',12); 
+
+            obj.graphics(4) = text(posX1+5,posY2-8,['P-Error: ',num2str(round(obj.error(1),1))],'FontSize',12);
+            obj.graphics(5) = text(posX1+30,posY2-8,['V-Error: ',num2str(round(obj.error(2),1))],'FontSize',12);
+            obj.graphics(6) = text(posX1+55,posY2-8,['A-Error: ',num2str(round(obj.error(3),1))],'FontSize',12);
+
 
             axis([posX1,posX2,posY1,posY2])
         end
 
 
-        function outputArg = update(obj,dt)
+        function outputArg = update(obj,t,dt)
             
             % Do the necessary computations/generations to generate the signals to initiate the program
+            totalError = zeros(3,1);
+
             for k = 1:1:obj.numOfPlatoons
-                % Generate the updated states
-                obj.platoons(k).generateStates(dt);
 
                 % Generate the noises
-                obj.platoons(k).generateNoises();                      % generate the noises associated with the platoons.
+                obj.platoons(k).generateNoises();
 
-                % Compute all the controls 
-%                 obj.platoons(k).computeControlInputs(obj.platoons,dt); % compute all the self-controls associated with the platoons.
+                % Error Dynamics - I : Computing Platooning Errors and Controls
+%                 obj.platoons(k).computePlatooningErrors1();
+%                 obj.platoons(k).computeControlInputs1(t);
+
+                % Error Dynamics - II : Computing Platooning Errors and Controls
+                obj.platoons(k).computePlatooningErrors2();
+                obj.platoons(k).computeControlInputs2(t); 
+
+                % Update the states
+                platoonError = obj.platoons(k).update(t,dt);
+                totalError = totalError + platoonError;
+
             end
 
-%             % Update the cross-chain control outputs based on the computed cross-chain control inputs)
-%             for k = 1:1:obj.numOfPlatoons
-%                 obj.chains(k).updateControlOutputs(obj.chains);
-%             end
 
-            % Update the states
-%             costSoFar = obj.cost*obj.time;
+            % Update the time, error and cost
+            costSoFar = obj.cost^2*obj.time;
             obj.time = obj.time + dt;
-%             totalError = 0;          
 
-%             for k = 1:1:obj.numOfPlatoons
-%                 platoonError = obj.platoons(k).update(dt);
-%                 totalError = totalError + platoonError;
-%             end
-% 
-%             obj.error = totalError;
-%             costSoFar = costSoFar + obj.error;
-%             obj.cost = costSoFar/obj.time;
+            
+            obj.error = totalError;
+            costSoFar = costSoFar + (norm(obj.error))^2*dt;
+            obj.cost = sqrt(costSoFar/obj.time);
             
         end
 
@@ -115,6 +121,9 @@ classdef Network < handle
                 delete(obj.graphics(1));
                 delete(obj.graphics(2)); 
                 delete(obj.graphics(3)); 
+                delete(obj.graphics(4));
+                delete(obj.graphics(5)); 
+                delete(obj.graphics(6));
 
                 % Coordinate of the boundary of the bounding box
                 posY1 = -5;
@@ -124,13 +133,53 @@ classdef Network < handle
                 posX2 = obj.platoons(1).vehicles(1).states(1)+10;
                 
                 obj.graphics(1) = text(posX1+5,posY2-5,['Time: ',num2str(obj.time)],'FontSize',12);
-                obj.graphics(2) = text(posX1+30,posY2-5,['Error: ',num2str(round(obj.error,3))],'FontSize',12);
-                obj.graphics(3) = text(posX1+55,posY2-5,['Cost: ',num2str(round(obj.cost,3))],'FontSize',12);           
+                obj.graphics(2) = text(posX1+30,posY2-5,['Error: ',num2str(round(norm(obj.error),1))],'FontSize',12);
+                obj.graphics(3) = text(posX1+55,posY2-5,['Cost: ',num2str(round(obj.cost,1))],'FontSize',12);           
                 
+                obj.graphics(4) = text(posX1+5,posY2-8,['P-Error: ',num2str(round(obj.error(1),1))],'FontSize',12);
+                obj.graphics(5) = text(posX1+30,posY2-8,['V-Error: ',num2str(round(obj.error(2),1))],'FontSize',12);
+                obj.graphics(6) = text(posX1+55,posY2-8,['A-Error: ',num2str(round(obj.error(3),1))],'FontSize',12);  
+
                 axis([posX1,posX2,posY1,posY2])
             end
 
         end
+
+        
+        function outputArg = generateLeadersControlProfiles(obj,dt,tVals,vVals)
+            % Here we basically have to derive each leader's control trajectory
+            
+            % aVals computation
+            aVals = []; 
+            for k = 1:1:(length(tVals)-1)
+                v_1 = vVals(k);     
+                t_1 = tVals(k);
+                v_2 = vVals(k+1);   
+                t_2 = tVals(k+1);
+                a_1 = (v_2-v_1)/(t_2-t_1);
+                aVals = [aVals, a_1];
+            end
+            aVals = [aVals, 0];
+
+            % uVals computation
+            uVals= [];
+            a_0 = 0; 
+            for k = 1:1:length(tVals)
+                a_1 = aVals(k);     
+                u_1 = (a_1-a_0)/dt;
+                a_0 = a_1;
+                uVals = [uVals, u_1];
+            end
+
+            % Setting initial velocities
+            for k = 1:1:obj.numOfPlatoons
+                obj.platoons(k).vehicles(1).states(2) = vVals(1);
+                obj.platoons(k).vehicles(1).plannedControls = [tVals',uVals'];
+            end
+           
+        
+        end
+
 
 
         
