@@ -631,7 +631,7 @@ classdef Platoon < handle
             isSoft = 1;
 
             % Desired noise attenuation level: L2Gain from w to e
-            gammaSqBar = 0.1;
+            gammaSqBar = 9;
 
             % Passivity indices type
             passivityInfoType = 4;
@@ -652,7 +652,7 @@ classdef Platoon < handle
                 rhoVals = rho*ones(N,1);
                 obj.loadPassivityIndices(nuVals,rhoVals);
             elseif passivityInfoType==4 % With local controllers - II: rho = 0, nu = -1/2 (this approach can stabilize)
-                nu = -1/2
+                nu = -1/2;
                 nuVals = nu*ones(N,1);
                 rhoVals = 0*ones(N,1);
                 obj.loadPassivityIndices(nuVals,rhoVals);
@@ -668,16 +668,16 @@ classdef Platoon < handle
                         if A(i+1,j+1)==1
                             adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
                             nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
-                            costMatBlock{i,j} = 1*[0,0,0; 0,0,0; 1,1,1];
+                            costMatBlock{i,j} = 0.01*[0,0,0; 0,0,0; 1,1,1];
                         else
                             adjMatBlock{i,j} = [0,0,0; 0,0,0; 0,0,0];
                             nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
-                            costMatBlock{i,j} = 100*[0,0,0; 0,0,0; 1,1,1];
+                            costMatBlock{i,j} = 1*[0,0,0; 0,0,0; 1,1,1];
                         end
                     else
                         adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
                         nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
-                        costMatBlock{i,j} = 0.01*[0,0,0; 0,0,0; 1,1,1];
+                        costMatBlock{i,j} = 0*[0,0,0; 0,0,0; 1,1,1];
                     end
                 end 
             end
@@ -694,7 +694,7 @@ classdef Platoon < handle
 
             Q = sdpvar(3*N,3*N,'full'); 
             P = sdpvar(N,N,'diagonal');
-            gammaSq = sdpvar(1);
+            gammaSq = sdpvar(1,1,'full');
             
             X_p_11 = [];
             X_p_12 = [];
@@ -712,12 +712,11 @@ classdef Platoon < handle
             X_p_21 = X_p_12';
             X_21 = X_12';
             
-
             % Objective Function
             costFun = norm(Q.*costMatBlock,1);
 
             % Budget Constraints
-            con0 = costFun <= 1000000*obj.numOfVehicles;
+            con0 = costFun <= 1;
 
             % Basic Constraints
             con1 = P >= 0;
@@ -725,7 +724,7 @@ classdef Platoon < handle
             con3 = gammaSq <= gammaSqBar;
             con4 = trace(P)==1;
 
-            if passivityInfoType==1
+            if passivityInfoType==1 || passivityInfoType == 4
                 % LMI Condition - I
                 DMat = [X_p_11, O; O, I];
                 MMat = [Q, X_p_11; I, O];
@@ -733,10 +732,10 @@ classdef Platoon < handle
                 con5 = [DMat, MMat; MMat', ThetaMat] >= 0;
             else
                 % LMI Condition - II (when nu_i = 0, for all i)
-                DMat = [I];
-                MMat = [I, O];
-                ThetaMat = [-Q-Q'-X_p_22, -X_p_21; -X_p_12, gammaSq*I];
-                con5 = [DMat, MMat; MMat', ThetaMat] >= 0;
+%                 DMat = [I];
+%                 MMat = [I, O];
+%                 ThetaMat = [-Q-Q'-X_p_22, -X_p_21; -X_p_12, gammaSq*I];
+%                 con5 = [DMat, MMat; MMat', ThetaMat] >= 0;
 %                 con5 = -Q-Q'-X_p_22 >= 0;
             end
 
@@ -746,7 +745,7 @@ classdef Platoon < handle
 
             % Total Cost and Constraints
             if isSoft
-                cons = [con0,con1,con2,con3,con4,con5,con6]; % Without the hard graph constraint con7
+                cons = [con0,con1,con2,con3,con5,con6]; % Without the hard graph constraint con7
                 costFun = 1*costFun + 1*gammaSq; % soft 
             else
                 cons = [con0,con1,con2,con3,con4,con5,con6,con7]; % With the hard graph constraint con7
@@ -757,17 +756,19 @@ classdef Platoon < handle
             status = sol.info
             
             PVal = value(P)
+            QVal = value(Q)
+
             costFunVal = value(costFun)
             gammaSqVal = value(gammaSq)
 
-            Q = value(Q);
+            
             X_p_11Val = value(X_p_11);
             X_p_21Val = value(X_p_21);
 
-            if passivityInfoType==1
-                M_neVal = X_p_11Val\Q
+            if passivityInfoType==1 || passivityInfoType == 4
+                M_neVal = X_p_11Val\QVal
             else
-                M_neVal = X_p_21Val\Q
+                M_neVal = X_p_21Val\QVal
             end
             
             % Obtaining K_ij blocks
@@ -777,7 +778,7 @@ classdef Platoon < handle
                 for j = 1:1:N
                     K{i,j} = M_neVal(3*(i-1)+1:3*i , 3*(j-1)+1:3*j); % (i,j)-th (3 x 3) block
                     normVal = max(max(abs(K{i,j})));
-                    if normVal>maxNorm & i~=j
+                    if normVal>maxNorm 
                         maxNorm = normVal;
                     end
                 end
@@ -789,7 +790,7 @@ classdef Platoon < handle
                     
                     if i~=j
                         if isSoft
-                            K{i,j}(abs(K{i,j})<0.001*maxNorm) = 0;                       
+                            K{i,j}(abs(K{i,j})<0.000001*maxNorm) = 0;                       
                         else
                             if A(i+1,j+1)==0
                                 K{i,j} = zeros(3);
