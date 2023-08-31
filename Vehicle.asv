@@ -17,7 +17,11 @@ classdef Vehicle < handle
         nu
         rho
 
-        % ControllerGains
+        % Local Controller Gains
+        localControllerGains1 = []
+        localControllerGains2 = []
+
+        % Global ControllerGains
         controllerGains1 = []
         controllerGains2 = []
         
@@ -232,7 +236,7 @@ classdef Vehicle < handle
             else                    % Followers control (based on errors) under Error-Dynamics - I
                 
                 i = obj.vehicleIndex;
-                L_ii = obj.controllerGains1{i};
+                L_ii = obj.controllerGains1{i} + obj.localControllerGains2;
                 e_i = obj.errors;
                 obj.controlInput = L_ii*e_i;
 
@@ -253,7 +257,7 @@ classdef Vehicle < handle
             else                    % Followers control (based on errors) under Error-Dynamics - II
                
                 i = obj.vehicleIndex;
-                L_ii = obj.controllerGains2{i};
+                L_ii = obj.controllerGains2{i} + obj.localControllerGains2;
                 e_i = obj.errors;
                 controlInput = L_ii*e_i;
                 for jInd = 1:1:length(obj.inNeighbors)
@@ -294,64 +298,67 @@ classdef Vehicle < handle
             obj.rho = rho;
         end
 
-        function [LVal,rhoVal] = synthesizeLocalControllers(obj)
+        function status = synthesizeLocalControllers(obj)
             % Here we will synthesize the local controllers for local error
             % dynamics to optimize the passivity properties
             
             % Error Dynamics Type
-            errorDynamicsType = 1;
-            tau = 0.1; % Irrespective of this value, both methods seems to lead to rho = -1/2
-            if errorDynamicsType == 1       % When nu = 0, both methods seems to lead to rho = -1/2 
-                A = [0,1,0;0,0,0;0,0,-1/tau];    
+            % When nu = 0, both methods seems to lead to rho = -1/2 (this will not do)
+            % When rho = 0, second methods lead to nu = -1/2
+
+            errorDynamicsType = 2;
+            if errorDynamicsType == 1        
+                A = [0,1,0;0,0,0;0,0,0];    
             else
-                A = [0,1,0;0,0,1;0,0,-1/tau];    
+                A = [0,1,0;0,0,1;0,0,0];    
             end
             B = [0;0;1];
             I = eye(3);
             
             % Set up the LMI problem
-            solverOptions = sdpsettings('solver','mosek');            
+            solverOptions = sdpsettings('solver','mosek','verbose',0);            
             P = sdpvar(3,3,'symmetric'); 
             K = sdpvar(1,3,'full'); 
-            rho = sdpvar(1,1,'full');
+            rho = 0; %sdpvar(1,1,'full'); 
             nu = sdpvar(1,1,'full');
 
             X_11 = -nu*I;
             X_22 = -rho*I;
             X_12 = 0.5*I;
             X_21 = X_12';
-            alpha = -1;
 
             % Basic Constraints
             con1 = P >= 0;
-            con2 = trace(P)==1;
+            % con2 = trace(P)==1; % Not required here. 
             
-            % Approach 1 with nu=0
-            W = -2*(A+A')-B*K-K'*B'-4*rho*I;
-            % Approach 2 without nu=0 (still bilinear)
-            %W = [-A*P-P*A'-B*K-K'*B'+alpha*(P*X_22+X_22*P)-alpha^2*X_22, -I+P*X_21; -I+X_12*P, X_11]
+            % Condition with rho = 0 and nu < 0 and nu is free to maximize -----> leads to nu = -1/2
+            W = [-A*P-P*A'-B*K-K'*B', -I+0.5*P; -I+0.5*P, X_11];
             
             con3 = W >= 0;
             
-
             % Total Cost and Constraints
-            cons = [con1,con2,con3];
-            costFun = -rho;
+            cons = [con1,con3];
+            costFun = -nu;
             
             % Solution
             sol = optimize(cons,[costFun],solverOptions);
-                        
-            PVal = value(P)
-            KVal = value(K)
+            status = sol.info;
 
-            LVal = KVal/PVal
-            rhoVal = value(rho)
+            PVal = value(P);
+            KVal = value(K);
+            LVal = KVal/PVal;
+            
+            nuVal = value(nu);
+            rhoVal = value(rho);
+            
+            % Updating the information
+            obj.rho = rhoVal;
+            obj.nu = nuVal;
 
-            status = sol.info
+            obj.localControllerGains1 = LVal; % Here we need \bar{k}_{i0}^{Local} = 1
+            obj.localControllerGains2 = LVal; 
             
         end
-
-
     end
 end
 

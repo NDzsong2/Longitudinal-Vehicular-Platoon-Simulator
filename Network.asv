@@ -183,7 +183,7 @@ classdef Network < handle
         function output = loadStabilizingPlatoonControllers(obj)
             for k = 1:1:obj.numOfPlatoons
                 platoonNum = k
-                platoon_status = obj.platoons(k).centralizedStabilizingControllerSynthesis2()
+                status = obj.platoons(k).centralizedStabilizingControllerSynthesis2();
             end
         end
 
