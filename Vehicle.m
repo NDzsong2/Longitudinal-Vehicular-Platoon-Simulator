@@ -306,54 +306,57 @@ classdef Vehicle < handle
             % When nu = 0, both methods seems to lead to rho = -1/2 (this will not do)
             % When rho = 0, second methods lead to nu = -1/2
 
-            errorDynamicsType = 2;
-            if errorDynamicsType == 1        
-                A = [0,1,0;0,0,0;0,0,0];    
-            else
-                A = [0,1,0;0,0,1;0,0,0];    
-            end
+            % A = [0,1,0;0,0,0;0,0,0]; % For error dynamics type 1
+            A = [0,1,0;0,0,1;0,0,0]; % For error dynamics type 2   
             B = [0;0;1];
             I = eye(3);
-            
+            O = zeros(3);
+
+            % LowerBounds
+            nuBar = -10;
+            rhoBarBar = 1/5;
+
             % Set up the LMI problem
             solverOptions = sdpsettings('solver','mosek','verbose',0);            
             P = sdpvar(3,3,'symmetric'); 
             K = sdpvar(1,3,'full'); 
-            rho = 0; %sdpvar(1,1,'full'); 
-            nu = sdpvar(1,1,'full');
 
-            X_11 = -nu*I;
-            X_22 = -rho*I;
-            X_12 = 0.5*I;
-            X_21 = X_12';
+            rhoBar = sdpvar(1,1,'full'); %Representing: 1/rho
+            nu = sdpvar(1,1,'full');
 
             % Basic Constraints
             con1 = P >= 0;
-            % con2 = trace(P)==1; % Not required here. 
-            
-            % Condition with rho = 0 and nu < 0 and nu is free to maximize -----> leads to nu = -1/2
-            W = [-A*P-P*A'-B*K-K'*B', -I+0.5*P; -I+0.5*P, X_11];
-            
+            con2 = trace(P) == 1; % In this setting this is not required actually
+           
+            % Approach 4 with rho = prespecified, nu < 0 and nu is free to maximize
+            DMat = [rhoBar*I];
+            MMat = [P, O];
+            ThetaMat = [-A*P-P*A'-B*K-K'*B', -I+0.5*P; -I+0.5*P, -nu*I];
+            W = [DMat, MMat; MMat', ThetaMat];
             con3 = W >= 0;
             
+            % Some modesty constraints on resulting nu and rho from the local design
+            con4 = nu >= nuBar;       % -8.1
+            con5 = rhoBar >= rhoBarBar;   % 1/4.1
+
             % Total Cost and Constraints
-            cons = [con1,con3];
-            costFun = -nu;
+            cons = [con1,con2,con3,con4,con5];
+            costFun = - nu + rhoBar;
             
             % Solution
             sol = optimize(cons,[costFun],solverOptions);
-            status = sol.info;
+            status = sol.problem == 0; % sol.info;
 
             PVal = value(P);
             KVal = value(K);
             LVal = KVal/PVal;
             
             nuVal = value(nu);
-            rhoVal = value(rho);
+            rhoVal = 1/value(rhoBar);
             
             % Updating the information
-            obj.rho = rhoVal;
             obj.nu = nuVal;
+            obj.rho = rhoVal;
 
             obj.localControllerGains1 = LVal; % Here we need \bar{k}_{i0}^{Local} = 1
             obj.localControllerGains2 = LVal; 
@@ -361,4 +364,3 @@ classdef Vehicle < handle
         end
     end
 end
-

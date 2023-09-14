@@ -180,10 +180,42 @@ classdef Network < handle
         
         end
 
-        function output = loadStabilizingPlatoonControllers(obj)
+
+
+        function output = loadPlatoonControllers(obj)
             for k = 1:1:obj.numOfPlatoons
-                platoonNum = k
-                platoon_status = obj.platoons(k).centralizedStabilizingControllerSynthesis2()
+
+                %% Controller Types:
+                % There can be three factors that determines the controller
+                % type: (i) Centralized/Decentralized, (ii)
+                % Stabilizing/Robust, and (iii) Error Dynamics Type
+                
+                errorDynamicsType = 2;  % Lets use the error dynamics formulation II for now...
+                isCentralized = 1;      % Lets start with focusing on centralized controller synthesis
+                isOnlyStabilizing = 1;  % Lets start we just a stabilizing controller (without caring about the disturbance robustness)
+                
+                if errorDynamicsType == 2           % Error dynamics formulation II
+                    if isCentralized == 1           % Centralized
+                        if isOnlyStabilizing == 1   % Only Stabilizing
+                            status = obj.platoons(k).centralizedStabilizingControllerSynthesis2();
+                        else                        % Robust
+                            status = obj.platoons(k).centralizedRobustControllerSynthesis2();
+                        end
+                    else                            % Decentralized
+                        if isOnlyStabilizing == 1   % Only Stabilizing
+                            status = obj.platoons(k).decentralizedStabilizingControllerSynthesis2();
+                        else                        % Robust
+                            status = obj.platoons(k).decentralizedRobustControllerSynthesis2();
+                        end
+                    end
+                end
+                
+                % Success or Failure
+                if status == 1
+                    disp(['Global Controller ',num2str(k),' Synthesis Success.']);
+                else
+                    disp(['Global Controller ',num2str(k),' Synthesis Failed.']);
+                end
             end
         end
 

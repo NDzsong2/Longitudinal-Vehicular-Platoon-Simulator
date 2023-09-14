@@ -227,161 +227,11 @@ classdef Platoon < handle
             end
         end
 
+        
+        %% Controller Synthesis using Error Dynamics Formulation I (we do not use these functions yet - they need to be revised)
 
-        function status = centralizedStabilizingControllerSynthesis2(obj)
-            % This is a very simple stabilizing controller synthesized
-            % based on the error dynamics formulation 2.
-
-            % Number of follower vehicles
-            N = obj.numOfVehicles-1; 
-            
-            % Whether to use a soft or hard graph constraint
-            isSoft = 1;
-            
-            % Load local controllers/passivity indices
-            for i = 1:1:N
-                vehicleNum = i+1
-                status = obj.vehicles(i+1).synthesizeLocalControllers()
-            end
-
-            % Above block is same as the following block (at this stage):  
-%             rho = 0;
-%             nu = -1/2;
-%             nuVals = nu*ones(N,1);
-%             rhoVals = rho*ones(N,1);
-%             obj.loadPassivityIndices(nuVals,rhoVals);
-            
-            
-            % Creating the adgacency matrix, null matrix and cost matrix
-            G = obj.topology.graph;
-            A = adjacency(G);
-            for i = 1:1:N
-                for j = 1:1:N
-                    % Structure of K_ij (which is a 3x3 matrix) should be embedded here
-                    if i~=j
-                        if A(i+1,j+1)==1
-                            adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
-                            nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
-                            costMatBlock{i,j} = 0.01*[0,0,0; 0,0,0; 1,1,1];
-                        else
-                            adjMatBlock{i,j} = [0,0,0; 0,0,0; 0,0,0];
-                            nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
-                            costMatBlock{i,j} = 1*[0,0,0; 0,0,0; 1,1,1];
-                        end
-                    else
-                        adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
-                        nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
-                        costMatBlock{i,j} = 0*[0,0,0; 0,0,0; 1,1,1];
-                    end
-                end 
-            end
-            adjMatBlock = cell2mat(adjMatBlock);
-            nullMatBlock = cell2mat(nullMatBlock);
-            costMatBlock = cell2mat(costMatBlock);
-            
-            % Set up the LMI problem
-            solverOptions = sdpsettings('solver','mosek','verbose',0);
-            I = eye(3*N);
-            I_n = eye(3);
-            O = zeros(3*N);
-            
-            Q = sdpvar(3*N,3*N,'full'); 
-            P = sdpvar(N,N,'diagonal');
-            
-            X_p_11 = [];
-            X_p_12 = [];
-            X_12 = [];
-            X_p_22 = [];
-            for i = 1:1:N
-                nu_i = obj.vehicles(i+1).nu;
-                rho_i = obj.vehicles(i+1).rho;
-            
-                X_p_11 = blkdiag(X_p_11,-nu_i*P(i,i)*I_n);
-                X_p_12 = blkdiag(X_p_12,0.5*P(i,i)*I_n);
-                X_12 = blkdiag(X_12,(-1/(2*nu_i))*I_n);
-                X_p_22 = blkdiag(X_p_22,-rho_i*P(i,i)*I_n);
-            end
-            X_p_21 = X_p_12';
-            X_21 = X_12';
-            
-            % Objective Function
-            costFun = norm(Q.*costMatBlock,1);
-            
-            % Budget Constraints
-            con01 = costFun <= 1;
-            con02 = costFun >= 0.1; % These constraints are non-convex
-            
-            % Basic Constraints
-            con1 = P >= 0;
-            con2 = trace(P) == 1;
-            
-            DMat = [X_p_11];
-            MMat = [Q];
-            ThetaMat = [-X_21*Q-Q'*X_12-X_p_22];
-            con3 = [DMat, MMat; MMat', ThetaMat] >= 0;
-            
-            % Structural constraints
-            con4 = Q.*(nullMatBlock==1)==O;  % Structural limitations (due to the format of the control law)
-            con5 = Q.*(adjMatBlock==0)==O;  % Graph structure : hard constraint
-            
-            
-            % Total Cost and Constraints
-            if isSoft
-                cons = [con01,con1,con2,con3,con4]; % Without the hard graph constraint con7
-                costFun = 1*costFun; % soft 
-            else
-                cons = [con01,con1,con2,con3,con4,con5]; % With the hard graph constraint con7
-                costFun = 1*costFun; % hard (same as soft)
-            end
-            
-            sol = optimize(cons,[costFun],solverOptions);
-            status = sol.info;
-            
-            costFunVal = value(costFun);
-            
-            PVal = value(P);
-            QVal = value(Q);
-            X_p_21Val = value(X_p_21);
-            X_p_22Val = value(X_p_22);
-            
-            M_neVal = X_p_21Val\QVal;
-            
-            % Obtaining K_ij blocks
-            M_neVal(nullMatBlock==1) = 0;
-            maxNorm = 0;
-            for i = 1:1:N
-                for j = 1:1:N
-                    K{i,j} = M_neVal(3*(i-1)+1:3*i , 3*(j-1)+1:3*j); % (i,j)-th (3 x 3) block
-                    normVal = max(max(abs(K{i,j})));
-                    if normVal>maxNorm 
-                        maxNorm = normVal;
-                    end
-                end
-            end
-            
-            % filtering out extremely small interconnections
-            for i=1:1:N
-                for j=1:1:N
-                    if i~=j
-                        if isSoft
-                            K{i,j}(abs(K{i,j})<0.000001*maxNorm) = 0;                       
-                        else
-                            if A(i+1,j+1)==0
-                                K{i,j} = zeros(3);
-                            end
-                        end
-                    end        
-                end
-            end
-      
-            obj.loadTopologyFromK2(K);
-            obj.loadControllerGains2(K);
-
-        end
-
-
-        %% Centralized Controller Synthesis using the First Error Dynamics Formulation
-        function status = centralizedControllerSynthesis1(obj)
+        % (Old) Centralized Robust Controller Synthesis (Error Dynamics Formulation I)
+        function status = centralizedRobustControllerSynthesis1(obj)
             
             % Number of follower vehicles
             N = obj.numOfVehicles-1; 
@@ -558,71 +408,309 @@ classdef Platoon < handle
         end
 
 
-        function outputArg = loadControllerGains1(obj,K)
+        %% Controller Synthesis using Error Dynamics Formulation II (We use these!)
+
+        % Centralized Stabilizing Controller Synthesis (Error Dynamics II) 
+        function status = centralizedStabilizingControllerSynthesis2(obj)
+            % This is a very simple stabilizing controller synthesized
+            % based on the error dynamics formulation 2.
+
+            % Number of follower vehicles
+            N = obj.numOfVehicles-1; 
             
-            N = obj.numOfVehicles-1;
-
-            % Loading L_ij values from K
-            for i = 1:1:N
-                sumK_ij = zeros(3,3);
-                for j = 1:1:N
-                    if j~=i
-                        sumK_ij = sumK_ij + K{i,j};
-                        L{i,j} = -K{i,j}(2,3);   %[0,0,0; 0,0,\bar{k}_{ij}; 0,0,0]
-                    end
-                end                
-                K_i0 = K{i,i} + sumK_ij;        %[0,0,0; 0,0,\bar{k}_{i0}; l_ii^x,l_ii^v,l_ii^a]
-                L0{i} = K_i0(2,3);              
-                L{i,i} = K_i0(3,:);             
-            end
+            % Whether to use a soft or hard graph constraint
+            isSoft = 1;
             
-            L0
-            L
-
-            % Loading controller gains from L_ij values
+            % Load local controllers/passivity indices
             for i = 1:1:N
-                obj.vehicles(i+1).controllerGains1 = [];
-                obj.vehicles(i+1).controllerGains1{1} = L0{i};
-                obj.vehicles(i+1).controllerGains1{i+1} = L{i,i};
+                vehicleNum = i+1
+                status = obj.vehicles(i+1).synthesizeLocalControllers()
+            end            
+            
+            % Creating the adgacency matrix, null matrix and cost matrix
+            G = obj.topology.graph;
+            A = adjacency(G);
+            for i = 1:1:N
                 for j = 1:1:N
-                    if j~=i && norm(L{i,j})> 0
-                        obj.vehicles(i+1).controllerGains1{j+1} = L{i,j};
-                    end
-                end
-            end
-
-        end
-
-
-        function outputArg = loadTopologyFromK1(obj,K)
-
-            NBar = obj.numOfVehicles;
-
-            startNodes = [];
-            endNodes = [];
-            for i = 1:1:NBar
-                nodeNames{i} = num2str(i-1);
-                for j = 1:1:NBar
-                    if j ~= 1 && j~=i 
-                        if i == 1
-                            startNodes = [startNodes,i];
-                            endNodes = [endNodes,j];
-                        elseif norm(K{i-1,j-1})> 0
-                            startNodes = [startNodes,j];
-                            endNodes = [endNodes,i];
+                    % Structure of K_ij (which is a 3x3 matrix) should be embedded here
+                    if i~=j
+                        if A(i+1,j+1)==1
+                            adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
+                            nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
+                            costMatBlock{i,j} = 0.01*[0,0,0; 0,0,0; 1,1,1];
+                        else
+                            adjMatBlock{i,j} = [0,0,0; 0,0,0; 0,0,0];
+                            nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
+                            costMatBlock{i,j} = 1*[0,0,0; 0,0,0; 1,1,1];
                         end
+                    else
+                        adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
+                        nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
+                        costMatBlock{i,j} = 0*[0,0,0; 0,0,0; 1,1,1];
+                    end
+                end 
+            end
+            adjMatBlock = cell2mat(adjMatBlock);
+            nullMatBlock = cell2mat(nullMatBlock);
+            costMatBlock = cell2mat(costMatBlock);
+            
+            % Set up the LMI problem
+            solverOptions = sdpsettings('solver','mosek','verbose',0);
+            I = eye(3*N);
+            I_n = eye(3);
+            O = zeros(3*N);
+            
+            Q = sdpvar(3*N,3*N,'full'); 
+            P = sdpvar(N,N,'diagonal');
+            
+            X_p_11 = [];
+            X_p_12 = [];
+            X_12 = [];
+            X_p_22 = [];
+            for i = 1:1:N
+                nu_i = obj.vehicles(i+1).nu;
+                rho_i = obj.vehicles(i+1).rho;
+            
+                X_p_11 = blkdiag(X_p_11,-nu_i*P(i,i)*I_n);
+                X_p_12 = blkdiag(X_p_12,0.5*P(i,i)*I_n);
+                X_12 = blkdiag(X_12,(-1/(2*nu_i))*I_n);
+                X_p_22 = blkdiag(X_p_22,-rho_i*P(i,i)*I_n);
+            end
+            X_p_21 = X_p_12';
+            X_21 = X_12';
+            
+            % Objective Function
+            costFun = norm(Q.*costMatBlock,1);
+            
+            % Budget Constraints
+            con01 = costFun <= 1;
+            con02 = costFun >= 0.1; % These constraints are non-convex
+            
+            % Basic Constraints
+            con1 = P >= 0;
+            con2 = trace(P) == 1;
+            
+            DMat = [X_p_11];
+            MMat = [Q];
+            ThetaMat = [-X_21*Q-Q'*X_12-X_p_22];
+            con3 = [DMat, MMat; MMat', ThetaMat] >= 0;
+            
+            % Structural constraints
+            con4 = Q.*(nullMatBlock==1)==O;  % Structural limitations (due to the format of the control law)
+            con5 = Q.*(adjMatBlock==0)==O;  % Graph structure : hard constraint
+            
+            
+            % Total Cost and Constraints
+            if isSoft
+                cons = [con01,con1,con2,con3,con4]; % Without the hard graph constraint con7
+                costFun = 1*costFun; % soft 
+            else
+                cons = [con01,con1,con2,con3,con4,con5]; % With the hard graph constraint con7
+                costFun = 1*costFun; % hard (same as soft)
+            end
+            
+            sol = optimize(cons,[costFun],solverOptions);
+            status = sol.info;
+            
+            costFunVal = value(costFun);
+            
+            PVal = value(P);
+            QVal = value(Q);
+            X_p_21Val = value(X_p_21);
+            X_p_22Val = value(X_p_22);
+            
+            M_neVal = X_p_21Val\QVal;
+            
+            % Obtaining K_ij blocks
+            M_neVal(nullMatBlock==1) = 0;
+            maxNorm = 0;
+            for i = 1:1:N
+                for j = 1:1:N
+                    K{i,j} = M_neVal(3*(i-1)+1:3*i , 3*(j-1)+1:3*j); % (i,j)-th (3 x 3) block
+                    normVal = max(max(abs(K{i,j})));
+                    if normVal>maxNorm 
+                        maxNorm = normVal;
                     end
                 end
-
             end
-
-            obj.topology = Topology(NBar,startNodes,endNodes,nodeNames);
-            obj.updateNeighbors();
+            
+            % filtering out extremely small interconnections
+            for i=1:1:N
+                for j=1:1:N
+                    if i~=j
+                        if isSoft
+                            K{i,j}(abs(K{i,j})<0.000001*maxNorm) = 0;                       
+                        else
+                            if A(i+1,j+1)==0
+                                K{i,j} = zeros(3);
+                            end
+                        end
+                    end        
+                end
+            end
+      
+            obj.loadTopologyFromK2(K);
+            obj.loadControllerGains2(K);
 
         end
+           
 
-        %% Centralized Controller Synthesis using the Second Error Dynamics Formulation
-        function status = centralizedControllerSynthesis2(obj)
+        % (New) Centralized Robust Controller Synthesis (Error Dynamics II) 
+        function status = centralizedRobustControllerSynthesis2(obj)
+            % This is a very simple stabilizing controller synthesized
+            % based on the error dynamics formulation 2.
+
+            % Number of follower vehicles
+            N = obj.numOfVehicles-1; 
+            
+            % Load local controllers and resulting passivity indices
+            for i = 1:1:N
+                status = obj.vehicles(i+1).synthesizeLocalControllers();
+                if status == 1
+                    disp(['Local Controller at Vehicle',num2str(i+1),' Synthesis Success.'])
+                else
+                    disp(['Local Controller at Vehicle',num2str(i+1),' Synthesis Failed.'])
+                end
+            end
+            
+            % Creating the adgacency matrix, null matrix and cost matrix
+            G = obj.topology.graph;
+            A = adjacency(G);
+            for i = 1:1:N
+                for j = 1:1:N
+                    % Structure of K_ij (which is a 3x3 matrix) should be embedded here
+                    if i~=j
+                        if A(i+1,j+1)==1
+                            adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
+                            nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
+                            costMatBlock{i,j} = 0.01*[0,0,0; 0,0,0; 1,1,1];
+                        else
+                            adjMatBlock{i,j} = [0,0,0; 0,0,0; 0,0,0];
+                            nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
+                            costMatBlock{i,j} = 1*[0,0,0; 0,0,0; 1,1,1];
+                        end
+                    else
+                        adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
+                        nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
+                        costMatBlock{i,j} = 1*[0,0,0; 0,0,0; 1,1,1];
+                    end
+                end 
+            end
+            adjMatBlock = cell2mat(adjMatBlock);
+            nullMatBlock = cell2mat(nullMatBlock);
+            costMatBlock = cell2mat(costMatBlock);
+            
+            % Set up the LMI problem
+            solverOptions = sdpsettings('solver','mosek','verbose',0);
+            I = eye(3*N);
+            I_n = eye(3);
+            O = zeros(3*N);
+
+            % UpperBounds
+            gammaSqBar = 10;
+            
+            % Whether to use a soft or hard graph constraint
+            isSoft = 1;
+
+            Q = sdpvar(3*N,3*N,'full'); 
+            P = sdpvar(N,N,'diagonal');
+            gammaSq = sdpvar(1,1,'full');
+
+            X_p_11 = [];
+            X_p_12 = [];
+            X_12 = [];
+            X_p_22 = [];
+            for i = 1:1:N
+                nu_i = obj.vehicles(i+1).nu;
+                rho_i = obj.vehicles(i+1).rho;
+            
+                X_p_11 = blkdiag(X_p_11,-nu_i*P(i,i)*I_n);
+                X_p_12 = blkdiag(X_p_12,0.5*P(i,i)*I_n);
+                X_12 = blkdiag(X_12,(-1/(2*nu_i))*I_n);
+                X_p_22 = blkdiag(X_p_22,-rho_i*P(i,i)*I_n);
+            end
+            X_p_21 = X_p_12';
+            X_21 = X_12';
+            
+            % Objective Function
+            costFun = norm(Q.*costMatBlock,2) + 0*norm(Q.*nullMatBlock,2);
+            
+            % Budget Constraints (Not at this stage)
+            % con01 = costFun <= 1;
+                        
+            % Basic Constraints
+            con1 = P >= 0;
+            con2 = trace(P) == 1;
+            con3 = gammaSq >= 0;
+
+            DMat = [X_p_11, O; O, I];
+            MMat = [Q, X_p_11; I, O];
+            ThetaMat = [-X_21*Q-Q'*X_12-X_p_22, -X_p_21; -X_p_12, gammaSq*I];
+            con4 = [DMat, MMat; MMat', ThetaMat] >= 0; % The real one
+            
+            % Structural constraints
+            con5 = Q.*(nullMatBlock==1)==O;  % Structural limitations (due to the format of the control law)
+            con6 = Q.*(adjMatBlock==0)==O;  % Graph structure : hard constraint
+                        
+            con7 = gammaSq <= gammaSqBar;
+            
+            % Total Cost and Constraints
+            if isSoft
+                cons = [con1,con3,con4,con5,con7]; % Without the hard graph constraint con7
+                costFun = 1*costFun + 1*gammaSq; % soft 
+            else
+                cons = [con1,con2,con3,con4,con5,con6,con7]; % With the hard graph constraint con7
+                costFun = 1*costFun + 1*gammaSq; % hard (same as soft)
+            end
+            
+            sol = optimize(cons,[costFun],solverOptions);
+            sol.info
+            status = sol.problem == 0; %sol.info;
+            
+            costFunVal = value(costFun);
+            PVal = value(P);
+            QVal = value(Q);
+            X_p_11Val = value(X_p_11);
+            X_p_21Val = value(X_p_21);
+
+            M_neVal = X_p_11Val\QVal
+            
+            % Obtaining K_ij blocks
+            M_neVal(nullMatBlock==1) = 0;
+            maxNorm = 0;
+            for i = 1:1:N
+                for j = 1:1:N
+                    K{i,j} = M_neVal(3*(i-1)+1:3*i , 3*(j-1)+1:3*j); % (i,j)-th (3 x 3) block
+                    normVal = max(max(abs(K{i,j})));
+                    if normVal>maxNorm 
+                        maxNorm = normVal;
+                    end
+                end
+            end
+            
+            % filtering out extremely small interconnections
+            for i=1:1:N
+                for j=1:1:N
+                    if i~=j
+                        if isSoft
+                            K{i,j}(abs(K{i,j})<0.000001*maxNorm) = 0;                       
+                        else
+                            if A(i+1,j+1)==0
+                                K{i,j} = zeros(3);
+                            end
+                        end
+                    end        
+                end
+            end
+      
+            obj.loadTopologyFromK2(K);
+            obj.loadControllerGains2(K);
+
+        end       
+
+
+        % (Old) Centralized Robust Controller Synthesis (Error Dynamics II) 
+        function status = centralizedRobustControllerSynthesis2Old(obj)
             
             % Number of follower vehicles
             N = obj.numOfVehicles-1; 
@@ -808,6 +896,73 @@ classdef Platoon < handle
         end
 
 
+
+        %% Functions for Loading Controller Gains and Topology under Different Error Dynamics Formulations
+
+        % Loading Controller Gains (Error Dynamics Formulation I)
+        function outputArg = loadControllerGains1(obj,K)
+            N = obj.numOfVehicles-1;
+
+            % Loading L_ij values from K
+            for i = 1:1:N
+                sumK_ij = zeros(3,3);
+                for j = 1:1:N
+                    if j~=i
+                        sumK_ij = sumK_ij + K{i,j};
+                        L{i,j} = -K{i,j}(2,3);   %[0,0,0; 0,0,\bar{k}_{ij}; 0,0,0]
+                    end
+                end                
+                K_i0 = K{i,i} + sumK_ij;        %[0,0,0; 0,0,\bar{k}_{i0}; l_ii^x,l_ii^v,l_ii^a]
+                L0{i} = K_i0(2,3);              
+                L{i,i} = K_i0(3,:);             
+            end
+            
+            L0
+            L
+
+            % Loading controller gains from L_ij values
+            for i = 1:1:N
+                obj.vehicles(i+1).controllerGains1 = [];
+                obj.vehicles(i+1).controllerGains1{1} = L0{i};
+                obj.vehicles(i+1).controllerGains1{i+1} = L{i,i};
+                for j = 1:1:N
+                    if j~=i && norm(L{i,j})> 0
+                        obj.vehicles(i+1).controllerGains1{j+1} = L{i,j};
+                    end
+                end
+            end
+
+        end
+
+
+        % Loading Topology (Error Dynamics Formulation I)
+        function outputArg = loadTopologyFromK1(obj,K)
+            NBar = obj.numOfVehicles;
+            startNodes = [];
+            endNodes = [];
+            for i = 1:1:NBar
+                nodeNames{i} = num2str(i-1);
+                for j = 1:1:NBar
+                    if j ~= 1 && j~=i 
+                        if i == 1
+                            startNodes = [startNodes,i];
+                            endNodes = [endNodes,j];
+                        elseif norm(K{i-1,j-1})> 0
+                            startNodes = [startNodes,j];
+                            endNodes = [endNodes,i];
+                        end
+                    end
+                end
+
+            end
+
+            obj.topology = Topology(NBar,startNodes,endNodes,nodeNames);
+            obj.updateNeighbors();
+
+        end
+
+
+        % Loading Controller Gains (Error Dynamics Formulation II)
         function outputArg = loadControllerGains2(obj,K)
 
             N = obj.numOfVehicles-1;
@@ -838,7 +993,8 @@ classdef Platoon < handle
         
         end
 
-        
+
+        % Loading Controller Gains (Error Dynamics Formulation II)
         function outputArg = loadTopologyFromK2(obj,K)
 
             NBar = obj.numOfVehicles;
