@@ -298,7 +298,7 @@ classdef Vehicle < handle
             obj.rho = rho;
         end
 
-        function status = synthesizeLocalControllers(obj)
+        function status = synthesizeLocalControllers(obj,errorDynamicsType)
             % Here we will synthesize the local controllers for local error
             % dynamics to optimize the passivity properties
             
@@ -306,8 +306,11 @@ classdef Vehicle < handle
             % When nu = 0, both methods seems to lead to rho = -1/2 (this will not do)
             % When rho = 0, second methods lead to nu = -1/2
 
-            % A = [0,1,0;0,0,0;0,0,0]; % For error dynamics type 1
-            A = [0,1,0;0,0,1;0,0,0]; % For error dynamics type 2   
+            if errorDynamicsType == 1
+                A = [0,1,0;0,0,0;0,0,0]; % For error dynamics type 1
+            else
+                A = [0,1,0;0,0,1;0,0,0]; % For error dynamics type 2   
+            end
             B = [0;0;1];
             I = eye(3);
             O = zeros(3);

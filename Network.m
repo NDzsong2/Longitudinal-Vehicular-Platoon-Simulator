@@ -194,7 +194,21 @@ classdef Network < handle
                 isCentralized = 1;      % Lets start with focusing on centralized controller synthesis
                 isOnlyStabilizing = 1;  % Lets start we just a stabilizing controller (without caring about the disturbance robustness)
                 
-                if errorDynamicsType == 2           % Error dynamics formulation II
+                if errorDynamicsType == 1           % Error dynamics formulation I
+                    if isCentralized == 1           % Centralized
+                        if isOnlyStabilizing == 1   % Only Stabilizing
+                            status = obj.platoons(k).centralizedStabilizingControllerSynthesis1();
+                        else                        % Robust
+                            status = obj.platoons(k).centralizedRobustControllerSynthesis1();
+                        end
+                    else                            % Decentralized
+                        if isOnlyStabilizing == 1   % Only Stabilizing
+                            status = obj.platoons(k).decentralizedStabilizingControllerSynthesis1();
+                        else                        % Robust
+                            status = obj.platoons(k).decentralizedRobustControllerSynthesis1();
+                        end
+                    end
+                else                                % Error dynamics formulation II
                     if isCentralized == 1           % Centralized
                         if isOnlyStabilizing == 1   % Only Stabilizing
                             status = obj.platoons(k).centralizedStabilizingControllerSynthesis2();
@@ -216,6 +230,7 @@ classdef Network < handle
                 else
                     disp(['Global Controller ',num2str(k),' Synthesis Failed.']);
                 end
+                
             end
         end
 
