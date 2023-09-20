@@ -12,7 +12,8 @@ classdef Platoon < handle
         vehicles = []           % this array holds all the vehicle class objects created. 
         topology
        
-        graphics = []
+        graphics1 = []
+        graphics2 = []
     end
     
     methods
@@ -122,11 +123,31 @@ classdef Platoon < handle
                 startPos = obj.vehicles(startVehicleIndex).states(1) - obj.vehicles(startVehicleIndex).vehicleParameters(2)/2;
                 endPos = obj.vehicles(endVehicleIndex).states(1) - obj.vehicles(endVehicleIndex).vehicleParameters(2)/2;
                 midPos = (startPos + endPos)/2;
-                midPointHeight = -3*sign(startPos-endPos)+0.05*abs(startPos-endPos); % 4
+                midPointHeight = -3*sign(startPos-endPos)+0.05*abs(startPos-endPos)+1.5*(startPos<endPos); % 4
 
                 startPosY = obj.vehicles(startVehicleIndex).vehicleParameters(2)*3/8;
                 endPosY = obj.vehicles(endVehicleIndex).vehicleParameters(2)*3/8;
-                obj.graphics(i) = plot([startPos,midPos,endPos],[0,midPointHeight,0]+[startPosY,0,endPosY],'-b');
+                %obj.graphics(i) = plot([startPos,midPos,endPos],[startPosY,midPointHeight,endPosY],'-b');
+
+                % Plotting the Spline
+                x = [startPos,midPos,endPos];
+                y = [startPosY,midPointHeight,endPosY];
+                stepSize = (endPos-startPos)/20; 
+                xx = startPos:stepSize:endPos;
+                yy = spline(x,y,xx);
+                obj.graphics1(i) = plot(xx,yy,'-b');
+            
+                % Plotting the arrowHead (polyshape)
+                polyPosX = midPos;
+                polyPosY = midPointHeight;
+                polySize = 0.3;
+                polyVertX = [-0.5,1,-0.5];
+                polyVertY = [0.5,0,-0.5];
+                if polyPosY < 0
+                    polyVertX = -polyVertX;
+                end
+                arrowHead = polyshape(polyPosX+polySize*polyVertX,polyPosY+polySize*polyVertY);
+                obj.graphics2(i) = plot(arrowHead,'EdgeColor','k','FaceColor','b');
             end            
         end
 
@@ -151,8 +172,9 @@ classdef Platoon < handle
             numOfLinks = length(obj.topology.startNodes);
             
             for i = 1:1:numOfLinks
-                if ~isempty(obj.graphics(i))
-                    delete(obj.graphics(i));
+                if ~isempty(obj.graphics1(i))
+                    delete(obj.graphics1(i));
+                    delete(obj.graphics2(i));
 
                     % Redraw a link
                     startVehicleIndex = obj.topology.startNodes(i);
@@ -161,12 +183,32 @@ classdef Platoon < handle
                     startPos = obj.vehicles(startVehicleIndex).states(1) - obj.vehicles(startVehicleIndex).vehicleParameters(2)/2;
                     endPos = obj.vehicles(endVehicleIndex).states(1) - obj.vehicles(endVehicleIndex).vehicleParameters(2)/2;
                     midPos = (startPos + endPos)/2;
-                    midPointHeight = -3*sign(startPos-endPos)+0.05*abs(startPos-endPos); % 4
+                    midPointHeight = -3*sign(startPos-endPos)+0.05*abs(startPos-endPos)+1.5*(startPos<endPos); % 4
                     
                     startPosY = obj.vehicles(startVehicleIndex).vehicleParameters(2)*3/8;
                     endPosY = obj.vehicles(endVehicleIndex).vehicleParameters(2)*3/8;
-%                         obj.graphics(i) = plot([startPos,midPos,endPos],[0,4,0]+[startPosY,0,endPosY],'-b');
-                    obj.graphics(i) = plot([startPos,midPos,endPos],[0,midPointHeight,0]+[startPosY,0,endPosY],'-b');
+                    % obj.graphics1(i) = plot([startPos,midPos,endPos],[0,4,0]+[startPosY,0,endPosY],'-b');
+                    % obj.graphics1(i) = plot([startPos,midPos,endPos],[startPosY,midPointHeight,endPosY],'-b');
+
+                    % Plotting the Spline
+                    x = [startPos,midPos,endPos];
+                    y = [startPosY,midPointHeight,endPosY];
+                    stepSize = (endPos-startPos)/20; 
+                    xx = startPos:stepSize:endPos;
+                    yy = spline(x,y,xx);
+                    obj.graphics1(i) = plot(xx,yy,'-b');
+                
+                    % Plotting the arrowHead (polyshape)
+                    polyPosX = midPos;
+                    polyPosY = midPointHeight;
+                    polySize = 0.3;
+                    polyVertX = [-0.5,1,-0.5];
+                    polyVertY = [0.5,0,-0.5];
+                    if polyPosY < 0
+                        polyVertX = -polyVertX;
+                    end
+                    arrowHead = polyshape(polyPosX+polySize*polyVertX,polyPosY+polySize*polyVertY);
+                    obj.graphics2(i) = plot(arrowHead,'EdgeColor','k','FaceColor','b');
                 end
             end            
         end
