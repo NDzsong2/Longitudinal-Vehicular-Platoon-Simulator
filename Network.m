@@ -182,17 +182,13 @@ classdef Network < handle
 
 
 
-        function output = loadPlatoonControllers(obj)
+        function output = loadPlatoonControllers(obj,errorDynamicsType,isCentralized,isOnlyStabilizing)
             for k = 1:1:obj.numOfPlatoons
 
                 %% Controller Types:
                 % There can be three factors that determines the controller
                 % type: (i) Centralized/Decentralized, (ii)
                 % Stabilizing/Robust, and (iii) Error Dynamics Type
-                
-                errorDynamicsType = 2;  % Lets use the error dynamics formulation II for now...
-                isCentralized = 1;      % Lets start with focusing on centralized controller synthesis
-                isOnlyStabilizing = 1;  % Lets start we just a stabilizing controller (without caring about the disturbance robustness)
                 
                 if errorDynamicsType == 1           % Error dynamics formulation I
                     if isCentralized == 1           % Centralized
