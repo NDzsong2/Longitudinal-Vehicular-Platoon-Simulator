@@ -12,7 +12,8 @@ classdef Platoon < handle
         vehicles = []           % this array holds all the vehicle class objects created. 
         topology
        
-        graphics = []
+        graphics1 = []
+        graphics2 = []
     end
     
     methods
@@ -122,11 +123,31 @@ classdef Platoon < handle
                 startPos = obj.vehicles(startVehicleIndex).states(1) - obj.vehicles(startVehicleIndex).vehicleParameters(2)/2;
                 endPos = obj.vehicles(endVehicleIndex).states(1) - obj.vehicles(endVehicleIndex).vehicleParameters(2)/2;
                 midPos = (startPos + endPos)/2;
-                midPointHeight = -3*sign(startPos-endPos)+0.05*abs(startPos-endPos); % 4
+                midPointHeight = -3*sign(startPos-endPos)+0.05*abs(startPos-endPos)+1.5*(startPos<endPos); % 4
 
                 startPosY = obj.vehicles(startVehicleIndex).vehicleParameters(2)*3/8;
                 endPosY = obj.vehicles(endVehicleIndex).vehicleParameters(2)*3/8;
-                obj.graphics(i) = plot([startPos,midPos,endPos],[0,midPointHeight,0]+[startPosY,0,endPosY],'-b');
+                %obj.graphics(i) = plot([startPos,midPos,endPos],[startPosY,midPointHeight,endPosY],'-b');
+
+                % Plotting the Spline
+                x = [startPos,midPos,endPos];
+                y = [startPosY,midPointHeight,endPosY];
+                stepSize = (endPos-startPos)/20; 
+                xx = startPos:stepSize:endPos;
+                yy = spline(x,y,xx);
+                obj.graphics1(i) = plot(xx,yy,'-b');
+            
+                % Plotting the arrowHead (polyshape)
+                polyPosX = midPos;
+                polyPosY = midPointHeight;
+                polySize = 0.3;
+                polyVertX = [-0.5,1,-0.5];
+                polyVertY = [0.5,0,-0.5];
+                if polyPosY < 0
+                    polyVertX = -polyVertX;
+                end
+                arrowHead = polyshape(polyPosX+polySize*polyVertX,polyPosY+polySize*polyVertY);
+                obj.graphics2(i) = plot(arrowHead,'EdgeColor','k','FaceColor','b');
             end            
         end
 
@@ -151,8 +172,9 @@ classdef Platoon < handle
             numOfLinks = length(obj.topology.startNodes);
             
             for i = 1:1:numOfLinks
-                if ~isempty(obj.graphics(i))
-                    delete(obj.graphics(i));
+                if ~isempty(obj.graphics1(i))
+                    delete(obj.graphics1(i));
+                    delete(obj.graphics2(i));
 
                     % Redraw a link
                     startVehicleIndex = obj.topology.startNodes(i);
@@ -161,12 +183,32 @@ classdef Platoon < handle
                     startPos = obj.vehicles(startVehicleIndex).states(1) - obj.vehicles(startVehicleIndex).vehicleParameters(2)/2;
                     endPos = obj.vehicles(endVehicleIndex).states(1) - obj.vehicles(endVehicleIndex).vehicleParameters(2)/2;
                     midPos = (startPos + endPos)/2;
-                    midPointHeight = -3*sign(startPos-endPos)+0.05*abs(startPos-endPos); % 4
+                    midPointHeight = -3*sign(startPos-endPos)+0.05*abs(startPos-endPos)+1.5*(startPos<endPos); % 4
                     
                     startPosY = obj.vehicles(startVehicleIndex).vehicleParameters(2)*3/8;
                     endPosY = obj.vehicles(endVehicleIndex).vehicleParameters(2)*3/8;
-%                         obj.graphics(i) = plot([startPos,midPos,endPos],[0,4,0]+[startPosY,0,endPosY],'-b');
-                    obj.graphics(i) = plot([startPos,midPos,endPos],[0,midPointHeight,0]+[startPosY,0,endPosY],'-b');
+                    % obj.graphics1(i) = plot([startPos,midPos,endPos],[0,4,0]+[startPosY,0,endPosY],'-b');
+                    % obj.graphics1(i) = plot([startPos,midPos,endPos],[startPosY,midPointHeight,endPosY],'-b');
+
+                    % Plotting the Spline
+                    x = [startPos,midPos,endPos];
+                    y = [startPosY,midPointHeight,endPosY];
+                    stepSize = (endPos-startPos)/20; 
+                    xx = startPos:stepSize:endPos;
+                    yy = spline(x,y,xx);
+                    obj.graphics1(i) = plot(xx,yy,'-b');
+                
+                    % Plotting the arrowHead (polyshape)
+                    polyPosX = midPos;
+                    polyPosY = midPointHeight;
+                    polySize = 0.3;
+                    polyVertX = [-0.5,1,-0.5];
+                    polyVertY = [0.5,0,-0.5];
+                    if polyPosY < 0
+                        polyVertX = -polyVertX;
+                    end
+                    arrowHead = polyshape(polyPosX+polySize*polyVertX,polyPosY+polySize*polyVertY);
+                    obj.graphics2(i) = plot(arrowHead,'EdgeColor','k','FaceColor','b');
                 end
             end            
         end
@@ -228,26 +270,26 @@ classdef Platoon < handle
         end
 
         
-        %% Controller Synthesis using Error Dynamics Formulation I (we do not use these functions yet - they need to be revised)
+        %% Stabilizing Controller Synthesis using Error Dynamics Formulation I
 
         % Centralized Stabilizing Controller Synthesis (Error Dynamics I) 
-        function status = centralizedStabilizingControllerSynthesis1(obj)
+        function status =  centralizedStabilizingControllerSynthesis1(obj,nuBar,rhoBar)
             % This is a very simple stabilizing controller synthesized
             % based on the error dynamics formulation 1.
 
             % Number of follower vehicles
-            N = obj.numOfVehicles-1; 
+            N = obj.numOfVehicles - 1; 
             
             % Whether to use a soft or hard graph constraint
             isSoft = 1;
             
             % Load local controllers/passivity indices
             for i = 1:1:N
-                status = obj.vehicles(i+1).synthesizeLocalControllers(1);
+                status = obj.vehicles(i+1).synthesizeLocalControllers(1,nuBar,rhoBar);
                 if status == 1
-                    disp(['Local Controller at Vehicle',num2str(i+1),' Synthesis Success.'])
+                    disp(['Local Passivating Controller at Vehicle',num2str(i+1),' Synthesis Success.'])
                 else
-                    disp(['Local Controller at Vehicle',num2str(i+1),' Synthesis Failed.'])
+                    disp(['Local Passivating Controller at Vehicle',num2str(i+1),' Synthesis Failed.'])
                 end
             end            
             
@@ -258,7 +300,7 @@ classdef Platoon < handle
                 for j = 1:1:N
                     % Structure of K_ij (which is a 3x3 matrix) should be embedded here
                     if i~=j
-                        if A(i+1,j+1)==1
+                        if A(j+1,i+1)==1
                             adjMatBlock{i,j} = [0,0,0; 0,0,1; 0,0,0];
                             nullMatBlock{i,j} = [1,1,1; 1,1,0; 1,1,1];
                             costMatBlock{i,j} = 0.01*[0,0,0; 0,0,1; 0,0,0];
@@ -319,7 +361,7 @@ classdef Platoon < handle
             
             % Structural constraints
             con4 = Q.*(nullMatBlock==1)==O;  % Structural limitations (due to the format of the control law)
-            con5 = Q.*(adjMatBlock==0)==O;  % Graph structure : hard constraint
+            con5 = Q.*(adjMatBlock==0)==O;   % Graph structure : hard constraint
             
             
             % Total Cost and Constraints
@@ -349,7 +391,7 @@ classdef Platoon < handle
             X_p_21Val = value(X_p_21);
             M_neVal = X_p_11Val\QVal
             
-            % Obtaining K_ij blocks
+            % Obtaining K_ij blocks (Blocking and Filtering)
             M_neVal(nullMatBlock==1) = 0;
             maxNorm = 0;
             for i = 1:1:N
@@ -377,26 +419,66 @@ classdef Platoon < handle
                 end
             end
       
+            % Updating the stored variables in the Platoon class and 
+            % Vehicle class objects based on the synthesized K
+            % (i.e., the interconnection matrix)
             K
-            obj.loadTopologyFromK2(K);
-            obj.loadControllerGains2(K);
+            obj.loadTopologyFromK1(K);
+            obj.loadControllerGains1(K);
 
         end
 
 
+        % Decentralized Stabilizing Controller Synthesis (Error Dynamics I) - Lets start with this as it is the simplest form!
+        function status = decentralizedStabilizingControllerSynthesis1(obj,indexing,nuBar,rhoBar)
+
+            if isempty(indexing)
+                indexing = [1:1:(length(obj.vehicles)-1)];
+            end
+        
+            for i = 1:1:length(indexing)
+                iInd = indexing(i);
+                previousSubsystems = indexing(1:i-1);                
+                [isStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd).stabilizingControllerSynthesis1(previousSubsystems, obj.vehicles, nuBar, rhoBar);
+
+                K{iInd,iInd} = K_ii;
+                for j = 1:1:length(previousSubsystems)
+                    jInd = previousSubsystems(j);
+                    K{iInd,jInd} = K_ijVals{jInd};
+                    K{jInd,iInd} = K_jiVals{jInd};
+                end
+        
+                if ~isStabilizable
+                    break
+                end
+            end
+        
+            if isStabilizable
+                status = 1;
+                obj.loadTopologyFromK1(K); 
+                obj.loadControllerGains1(K);
+            else
+                status = 0;
+            end
+
+        end
+
+
+        %% Robust Controller Synthesis using Error Dynamics Formulation I
+
         % Centralized Robust Controller Synthesis (Error Dynamics Formulation I)
-        function status = centralizedRobustControllerSynthesis1(obj)
+        function status = centralizedRobustControllerSynthesis1(obj,nuBar,rhoBar,gammaSqBar)
             
             % Number of follower vehicles
             N = obj.numOfVehicles-1; 
 
             % Load local controllers and resulting passivity indices
             for i = 1:1:N
-                status = obj.vehicles(i+1).synthesizeLocalControllers(1);
+                status = obj.vehicles(i+1).synthesizeLocalControllers(1,nuBar,rhoBar);
                 if status == 1
-                    disp(['Local Controller at Vehicle',num2str(i+1),' Synthesis Success.'])
+                    disp(['Local Passivating Controller at Vehicle',num2str(i+1),' Synthesis Success.'])
                 else
-                    disp(['Local Controller at Vehicle',num2str(i+1),' Synthesis Failed.'])
+                    disp(['Local Passivating Controller at Vehicle',num2str(i+1),' Synthesis Failed.'])
                 end
             end
 
@@ -424,7 +506,7 @@ classdef Platoon < handle
                 for j = 1:1:N
                     % Structure of K_ij (which is a 3x3 matrix) should be embedded here
                     if i~=j
-                        if A(i+1,j+1)==1
+                        if A(j+1,i+1)==1
                             adjMatBlock{i,j} = [0,0,0; 0,0,1; 0,0,0];
                             nullMatBlock{i,j} = [1,1,1; 1,1,0; 1,1,1];
                             costMatBlock{i,j} = 0.01*[0,0,0; 0,0,1; 0,0,0];
@@ -450,9 +532,6 @@ classdef Platoon < handle
             I_n = eye(3);
             O = zeros(3*N);
             
-            % Desired maximum noise attenuation level: L2Gain from w to e
-            gammaSqBar = 10;
-
             % Whether to use a soft or hard graph constraint
             isSoft = 1;
 
@@ -534,7 +613,7 @@ classdef Platoon < handle
 
             gammaSqVal = value(gammaSq)
 
-            M_neVal = X_p_11Val\QVa
+            M_neVal = X_p_11Val\QVal
             
 %             if passivityInfoType==1
 %                 M_neVal = X_p_11Val\QVal
@@ -577,11 +656,45 @@ classdef Platoon < handle
 
         end
 
+        % Decentralized Robust Controller Synthesis (Error Dynamics Formulation I)
+        function status = decentralizedRobustControllerSynthesis1(obj,indexing,nuBar,rhoBar,gammaSqBar)
+            
+            if isempty(indexing)
+                indexing = [1:1:(length(obj.vehicles)-1)];
+            end
+        
+            for i = 1:1:length(indexing)
+                iInd = indexing(i);
+                previousSubsystems = indexing(1:i-1);                
+                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd).robustControllerSynthesis1(previousSubsystems, obj.vehicles, nuBar, rhoBar, gammaSqBar);
 
-        %% Controller Synthesis using Error Dynamics Formulation II (We use these!)
+                K{iInd,iInd} = K_ii;
+                for j = 1:1:length(previousSubsystems)
+                    jInd = previousSubsystems(j);
+                    K{iInd,jInd} = K_ijVals{jInd};
+                    K{jInd,iInd} = K_jiVals{jInd};
+                end
+        
+                if ~isRobustStabilizable
+                    break
+                end
+            end
+        
+            if isRobustStabilizable
+                status = 1;
+                obj.loadTopologyFromK1(K); 
+                obj.loadControllerGains1(K);
+            else
+                status = 0;
+            end
+            
+        end 
+
+
+        %% Stabilizing Controller Synthesis using Error Dynamics Formulation II
 
         % Centralized Stabilizing Controller Synthesis (Error Dynamics II) 
-        function status = centralizedStabilizingControllerSynthesis2(obj)
+        function status = centralizedStabilizingControllerSynthesis2(obj,nuBar,rhoBar)
             % This is a very simple stabilizing controller synthesized
             % based on the error dynamics formulation 2.
 
@@ -593,11 +706,11 @@ classdef Platoon < handle
             
             % Load local controllers/passivity indices
             for i = 1:1:N
-                status = obj.vehicles(i+1).synthesizeLocalControllers(2);
+                status = obj.vehicles(i+1).synthesizeLocalControllers(2,nuBar,rhoBar);
                 if status == 1
-                    disp(['Local Controller at Vehicle',num2str(i+1),' Synthesis Success.'])
+                    disp(['Local Passivating Controller at Vehicle',num2str(i+1),' Synthesis Success.'])
                 else
-                    disp(['Local Controller at Vehicle',num2str(i+1),' Synthesis Failed.'])
+                    disp(['Local Passivating Controller at Vehicle',num2str(i+1),' Synthesis Failed.'])
                 end
             end            
             
@@ -608,7 +721,7 @@ classdef Platoon < handle
                 for j = 1:1:N
                     % Structure of K_ij (which is a 3x3 matrix) should be embedded here
                     if i~=j
-                        if A(i+1,j+1)==1
+                        if A(j+1,i+1)==1
                             adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
                             nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
                             costMatBlock{i,j} = 0.01*[0,0,0; 0,0,0; 1,1,1];
@@ -732,21 +845,57 @@ classdef Platoon < handle
             obj.loadControllerGains2(K);
 
         end
-           
+        
+
+        % Decentralized Stabilizing Controller Synthesis (Error Dynamics II)
+        function status = decentralizedStabilizingControllerSynthesis2(obj,nuBar,rhoBar)
+
+            if isempty(indexing)
+                indexing = [1:1:(length(obj.vehicles)-1)];
+            end
+        
+            for i = 1:1:length(indexing)
+                iInd = indexing(i);
+                previousSubsystems = indexing(1:i-1);                
+                [isStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd).stabilizingControllerSynthesis2(previousSubsystems, obj.vehicles, nuBar, rhoBar);
+
+                K{iInd,iInd} = K_ii;
+                for j = 1:1:length(previousSubsystems)
+                    jInd = previousSubsystems(j);
+                    K{iInd,jInd} = K_ijVals{jInd};
+                    K{jInd,iInd} = K_jiVals{jInd};
+                end
+        
+                if ~isStabilizable
+                    break
+                end
+            end
+        
+            if isStabilizable
+                status = 1;
+                obj.loadTopologyFromK2(K); 
+                obj.loadControllerGains2(K);
+            else
+                status = 0;
+            end
+        end
+
+
+        %% Robust Controller Synthesis using Error Dynamics Formulation II
 
         % Centralized Robust Controller Synthesis (Error Dynamics II) 
-        function status = centralizedRobustControllerSynthesis2(obj)
+        function status = centralizedRobustControllerSynthesis2(obj,nuBar,rhoBar,gammaSqBar)
             
             % Number of follower vehicles
             N = obj.numOfVehicles-1; 
             
             % Load local controllers and resulting passivity indices
             for i = 1:1:N
-                status = obj.vehicles(i+1).synthesizeLocalControllers(2);
+                status = obj.vehicles(i+1).synthesizeLocalControllers(2,nuBar,rhoBar);
                 if status == 1
-                    disp(['Local Controller at Vehicle',num2str(i+1),' Synthesis Success.'])
+                    disp(['Local Passivating Controller at Vehicle',num2str(i+1),' Synthesis Success.'])
                 else
-                    disp(['Local Controller at Vehicle',num2str(i+1),' Synthesis Failed.'])
+                    disp(['Local Passivating Controller at Vehicle',num2str(i+1),' Synthesis Failed.'])
                 end
             end
             
@@ -757,7 +906,7 @@ classdef Platoon < handle
                 for j = 1:1:N
                     % Structure of K_ij (which is a 3x3 matrix) should be embedded here
                     if i~=j
-                        if A(i+1,j+1)==1
+                        if A(j+1,i+1)==1
                             adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
                             nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
                             costMatBlock{i,j} = 0.01*[0,0,0; 0,0,0; 1,1,1];
@@ -783,9 +932,6 @@ classdef Platoon < handle
             I_n = eye(3);
             O = zeros(3*N);
 
-            % UpperBounds
-            gammaSqBar = 10;
-            
             % Whether to use a soft or hard graph constraint
             isSoft = 1;
 
@@ -889,6 +1035,41 @@ classdef Platoon < handle
         end       
 
 
+        % Decentralized Robust Controller Synthesis (Error Dynamics Formulation II)
+        function status = decentralizedRobustControllerSynthesis2(obj,nuBar,rhoBar,gammaSqBar)
+
+            if isempty(indexing)
+                indexing = [1:1:(length(obj.vehicles)-1)];
+            end
+        
+            for i = 1:1:length(indexing)
+                iInd = indexing(i);
+                previousSubsystems = indexing(1:i-1);                
+                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd).robustControllerSynthesis2(previousSubsystems, obj.vehicles, nuBar, rhoBar, gammaSqBar);
+
+                K{iInd,iInd} = K_ii;
+                for j = 1:1:length(previousSubsystems)
+                    jInd = previousSubsystems(j);
+                    K{iInd,jInd} = K_ijVals{jInd};
+                    K{jInd,iInd} = K_jiVals{jInd};
+                end
+        
+                if ~isRobustStabilizable
+                    break
+                end
+            end
+        
+            if isRobustStabilizable
+                status = 1;
+                obj.loadTopologyFromK2(K); 
+                obj.loadControllerGains2(K);
+            else
+                status = 0;
+            end
+        end 
+
+
+
         % (Old) Centralized Robust Controller Synthesis (Error Dynamics II) 
 %         function status = centralizedRobustControllerSynthesis2Old(obj)
 %             
@@ -933,7 +1114,7 @@ classdef Platoon < handle
 %                 for j = 1:1:N
 %                     % Structure of K_ij (which is a 3x3 matrix) should be embedded here
 %                     if i~=j
-%                         if A(i+1,j+1)==1
+%                         if A(j+1,i+1)==1
 %                             adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
 %                             nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
 %                             costMatBlock{i,j} = 0.01*[0,0,0; 0,0,0; 1,1,1];
@@ -1201,6 +1382,9 @@ classdef Platoon < handle
             obj.updateNeighbors();
 
         end
+
+
+
         
     end
 end

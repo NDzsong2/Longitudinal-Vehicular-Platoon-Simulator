@@ -612,13 +612,13 @@ classdef Vehicle < handle
 
 
         %% Decentralized Robust Controller Synthesis (Error Dynamics I)
-        function [isRobustStabilizable,K_ii,K_ijVals,K_jiVals] = robustControllerSynthesis1(obj, previousSubsystems, subsystems, nuBar, rhoBar, gammaSqBar)
+        function [isRobustStabilizable,K_ii,K_ijVals,K_jiVals] = robustControllerSynthesis1(obj, previousSubsystems, subsystems)
 
             i = length(previousSubsystems)+1;
             iInd = obj.vehicleIndex-1;
             disp(['Stabilizing at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
             
-            status = obj.synthesizeLocalControllers(1,nuBar,rhoBar);
+            status = obj.synthesizeLocalControllers(1);
             if status == 1
                 disp(['Local Passivating Controller at Vehicle',num2str(iInd+1),' Synthesis Success.'])
             else
@@ -643,6 +643,9 @@ classdef Vehicle < handle
             X_ii_21 = X_ii_12';
 
             obj.dataToBeDistributed.X = X_ii_12;
+
+            % Desired maximum noise attenuation level: L2Gain from w to e
+            gammaSqBar = 10;
 
             null_ii = [1,1,1; 1,1,0; 0,0,0];
             % adj_ii = [0,0,0; 0,0,1; 1,1,1];
@@ -886,7 +889,7 @@ classdef Vehicle < handle
             iInd = obj.vehicleIndex-1;
             disp(['Stabilizing at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
             
-            status = obj.synthesizeLocalControllers(1,nuBar,rhoBar);
+            status = obj.synthesizeLocalControllers(1);
             if status == 1
                 disp(['Local Passivating Controller at Vehicle',num2str(iInd+1),' Synthesis Success.'])
             else
@@ -1122,13 +1125,13 @@ classdef Vehicle < handle
 
 
         %% Decentralized Robust Controller Synthesis (Error Dynamics II)
-        function [isRobustStabilizable,K_ii,K_ijVals,K_jiVals] = robustControllerSynthesis2(obj, previousSubsystems, subsystems, nuBar, rhoBar, gammaSqBar)
+        function [isRobustStabilizable,K_ii,K_ijVals,K_jiVals] = robustControllerSynthesis2(obj, previousSubsystems, subsystems)
 
             i = length(previousSubsystems)+1;
             iInd = obj.vehicleIndex-1;
             disp(['Stabilizing at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
             
-            status = obj.synthesizeLocalControllers(1,nuBar,rhoBar);
+            status = obj.synthesizeLocalControllers(1);
             if status == 1
                 disp(['Local Passivating Controller at Vehicle',num2str(iInd+1),' Synthesis Success.'])
             else
@@ -1153,6 +1156,9 @@ classdef Vehicle < handle
             X_ii_21 = X_ii_12';
 
             obj.dataToBeDistributed.X = X_ii_12;
+
+            % Desired maximum noise attenuation level: L2Gain from w to e
+            gammaSqBar = 10;
 
             null_ii = [1,1,1; 1,1,1; 0,0,0];
             % adj_ii = [0,0,0; 0,0,0; 1,1,1];
