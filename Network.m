@@ -182,7 +182,7 @@ classdef Network < handle
 
 
 
-        function output = loadPlatoonControllers(obj,errorDynamicsType,isCentralized,isOnlyStabilizing)
+        function output = loadPlatoonControllers(obj,errorDynamicsType,isCentralized,isOnlyStabilizing,gammaSqBar,nuBar,rhoBar)
             for k = 1:1:obj.numOfPlatoons
 
                 %% Controller Types:
@@ -193,29 +193,29 @@ classdef Network < handle
                 if errorDynamicsType == 1           % Error dynamics formulation I
                     if isCentralized == 1           % Centralized
                         if isOnlyStabilizing == 1   % Only Stabilizing
-                            status = obj.platoons(k).centralizedStabilizingControllerSynthesis1();
+                            status = obj.platoons(k).centralizedStabilizingControllerSynthesis1(nuBar,rhoBar);
                         else                        % Robust
-                            status = obj.platoons(k).centralizedRobustControllerSynthesis1();
+                            status = obj.platoons(k).centralizedRobustControllerSynthesis1(nuBar,rhoBar,gammaSqBar);
                         end
                     else                            % Decentralized
                         if isOnlyStabilizing == 1   % Only Stabilizing
-                            status = obj.platoons(k).decentralizedStabilizingControllerSynthesis1();
+                            status = obj.platoons(k).decentralizedStabilizingControllerSynthesis1(nuBar,rhoBar);
                         else                        % Robust
-                            status = obj.platoons(k).decentralizedRobustControllerSynthesis1();
+                            status = obj.platoons(k).decentralizedRobustControllerSynthesis1(nuBar,rhoBar,gammaSqBar);
                         end
                     end
                 else                                % Error dynamics formulation II
                     if isCentralized == 1           % Centralized
                         if isOnlyStabilizing == 1   % Only Stabilizing
-                            status = obj.platoons(k).centralizedStabilizingControllerSynthesis2();
+                            status = obj.platoons(k).centralizedStabilizingControllerSynthesis2(nuBar,rhoBar);
                         else                        % Robust
-                            status = obj.platoons(k).centralizedRobustControllerSynthesis2();
+                            status = obj.platoons(k).centralizedRobustControllerSynthesis2(nuBar,rhoBar,gammaSqBar);
                         end
                     else                            % Decentralized
                         if isOnlyStabilizing == 1   % Only Stabilizing
-                            status = obj.platoons(k).decentralizedStabilizingControllerSynthesis2();
+                            status = obj.platoons(k).decentralizedStabilizingControllerSynthesis2(nuBar,rhoBar);
                         else                        % Robust
-                            status = obj.platoons(k).decentralizedRobustControllerSynthesis2();
+                            status = obj.platoons(k).decentralizedRobustControllerSynthesis2(nuBar,rhoBar,gammaSqBar);
                         end
                     end
                 end

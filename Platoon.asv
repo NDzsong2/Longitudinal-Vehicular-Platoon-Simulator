@@ -848,7 +848,7 @@ classdef Platoon < handle
         
 
         % Decentralized Stabilizing Controller Synthesis (Error Dynamics II)
-        function status = decentralizedStabilizingControllerSynthesis2(obj,nuBar,rhoBar)
+        function status = decentralizedStabilizingControllerSynthesis2(obj,nuBar,rhoBar,gammaSqBar)
 
             if isempty(indexing)
                 indexing = [1:1:(length(obj.vehicles)-1)];
@@ -857,7 +857,7 @@ classdef Platoon < handle
             for i = 1:1:length(indexing)
                 iInd = indexing(i);
                 previousSubsystems = indexing(1:i-1);                
-                [isStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd).stabilizingControllerSynthesis2(previousSubsystems, obj.vehicles, nuBar, rhoBar);
+                [isStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd).stabilizingControllerSynthesis2(previousSubsystems, obj.vehicles, nuBar, rhoBar, gammaSqBar);
 
                 K{iInd,iInd} = K_ii;
                 for j = 1:1:length(previousSubsystems)
@@ -1036,7 +1036,7 @@ classdef Platoon < handle
 
 
         % Decentralized Robust Controller Synthesis (Error Dynamics Formulation II)
-        function status = decentralizedRobustControllerSynthesis2(obj,nuBar,rhoBar,gammaSqBar)
+        function status = decentralizedRobustControllerSynthesis2(obj)
 
             if isempty(indexing)
                 indexing = [1:1:(length(obj.vehicles)-1)];
@@ -1045,7 +1045,7 @@ classdef Platoon < handle
             for i = 1:1:length(indexing)
                 iInd = indexing(i);
                 previousSubsystems = indexing(1:i-1);                
-                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd).robustControllerSynthesis2(previousSubsystems, obj.vehicles, nuBar, rhoBar, gammaSqBar);
+                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd).robustControllerSynthesis2(previousSubsystems, obj.vehicles);
 
                 K{iInd,iInd} = K_ii;
                 for j = 1:1:length(previousSubsystems)
