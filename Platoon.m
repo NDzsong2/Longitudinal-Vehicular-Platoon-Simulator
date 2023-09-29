@@ -852,7 +852,35 @@ classdef Platoon < handle
 
         % Decentralized Stabilizing Controller Synthesis (Error Dynamics II)
         function status = decentralizedStabilizingControllerSynthesis2(obj)
+            
+            if isempty(indexing)
+                indexing = [1:1:(length(obj.vehicles)-1)];
+            end
         
+            for i = 1:1:length(indexing)
+                iInd = indexing(i);
+                previousSubsystems = indexing(1:i-1);                
+                [isStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd).stabilizingControllerSynthesis2(previousSubsystems, obj.vehicles);
+
+                K{iInd,iInd} = K_ii;
+                for j = 1:1:length(previousSubsystems)
+                    jInd = previousSubsystems(j);
+                    K{iInd,jInd} = K_ijVals{jInd};
+                    K{jInd,iInd} = K_jiVals{jInd};
+                end
+        
+                if ~isStabilizable
+                    break
+                end
+            end
+        
+            if isStabilizable
+                status = 1;
+                obj.loadTopologyFromK2(K); 
+                obj.loadControllerGains2(K);
+            else
+                status = 0;
+            end
         end
 
 
@@ -1016,6 +1044,34 @@ classdef Platoon < handle
         % Decentralized Robust Controller Synthesis (Error Dynamics Formulation II)
         function status = decentralizedRobustControllerSynthesis2(obj)
 
+            if isempty(indexing)
+                indexing = [1:1:(length(obj.vehicles)-1)];
+            end
+        
+            for i = 1:1:length(indexing)
+                iInd = indexing(i);
+                previousSubsystems = indexing(1:i-1);                
+                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd).robustControllerSynthesis2(previousSubsystems, obj.vehicles);
+
+                K{iInd,iInd} = K_ii;
+                for j = 1:1:length(previousSubsystems)
+                    jInd = previousSubsystems(j);
+                    K{iInd,jInd} = K_ijVals{jInd};
+                    K{jInd,iInd} = K_jiVals{jInd};
+                end
+        
+                if ~isRobustStabilizable
+                    break
+                end
+            end
+        
+            if isRobustStabilizable
+                status = 1;
+                obj.loadTopologyFromK2(K); 
+                obj.loadControllerGains2(K);
+            else
+                status = 0;
+            end
         end 
 
         % (Old) Centralized Robust Controller Synthesis (Error Dynamics II) 
