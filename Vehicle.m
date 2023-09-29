@@ -91,7 +91,11 @@ classdef Vehicle < handle
         % This function is used to draw a "car" shape object
         function outArg = drawVehicle(obj,figNum)
             figure(figNum); hold on;
-      
+            
+            if ~isempty(obj.graphics)
+                delete(obj.graphics);
+            end
+
             length = obj.vehicleParameters(2);
             height1 = obj.vehicleParameters(2)/8;
             height2 = obj.vehicleParameters(2)/8;
@@ -341,12 +345,12 @@ classdef Vehicle < handle
             con3 = W >= 0;
             
             % Some modesty constraints on resulting nu and rho from the local design
-            con4 = nu >= nuBar;       % -8.1
-            con5 = rhoBar >= rhoBarBar;   % 1/4.1
+            con4 = nu >= nuBar;             % -8.1
+            con5 = rhoBar >= rhoBarBar;     % 1/4.1
 
             % Total Cost and Constraints
             cons = [con1,con2,con3,con4,con5];
-            costFun = - nu + rhoBar;
+            costFun = 0*(- nu + rhoBar);
             
             % Solution
             sol = optimize(cons,costFun,solverOptions);
@@ -354,10 +358,10 @@ classdef Vehicle < handle
 
             PVal = value(P);
             KVal = value(K);
-            LVal = KVal/PVal;
+            LVal = KVal/PVal
             
-            nuVal = value(nu);
-            rhoVal = 1/value(rhoBar);
+            nuVal = value(nu)
+            rhoVal = 1/value(rhoBar)
             
             % Updating the information
             obj.nu = nuVal;
@@ -365,6 +369,12 @@ classdef Vehicle < handle
 
             obj.localControllerGains1 = LVal; % Here we need \bar{k}_{i0}^{Local} = 1
             obj.localControllerGains2 = LVal; 
+
+            if status == 1
+                disp(['Synthesis Success at Vehicle ',num2str(obj.vehicleIndex),'.'])
+            else
+                disp(['Synthesis Failed at Vehicle ',num2str(obj.vehicleIndex),'.'])
+            end
             
         end
 
@@ -377,12 +387,7 @@ classdef Vehicle < handle
             disp(['Stabilizing at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
             
             status = obj.synthesizeLocalControllers(1,nuBar,rhoBar);
-            if status == 1
-                disp(['Local Passivating Controller at Vehicle',num2str(iInd+1),' Synthesis Success.'])
-            else
-                disp(['Local Passivating Controller at Vehicle',num2str(iInd+1),' Synthesis Failed.'])
-            end
-            
+                        
             % Seting up the LMI problem
             solverOptions = sdpsettings('solver','mosek','verbose',0);
             isSoft = 1; % Whether to use a soft or hard graph constraint
@@ -619,12 +624,7 @@ classdef Vehicle < handle
             disp(['Stabilizing at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
             
             status = obj.synthesizeLocalControllers(1,nuBar,rhoBar);
-            if status == 1
-                disp(['Local Passivating Controller at Vehicle',num2str(iInd+1),' Synthesis Success.'])
-            else
-                disp(['Local Passivating Controller at Vehicle',num2str(iInd+1),' Synthesis Failed.'])
-            end
-            
+                        
             % Seting up the LMI problem
             solverOptions = sdpsettings('solver','mosek','verbose',0);
             isSoft = 1; % Whether to use a soft or hard graph constraint
@@ -887,12 +887,7 @@ classdef Vehicle < handle
             disp(['Stabilizing at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
             
             status = obj.synthesizeLocalControllers(1,nuBar,rhoBar);
-            if status == 1
-                disp(['Local Passivating Controller at Vehicle',num2str(iInd+1),' Synthesis Success.'])
-            else
-                disp(['Local Passivating Controller at Vehicle',num2str(iInd+1),' Synthesis Failed.'])
-            end
-            
+                        
             % Seting up the LMI problem
             solverOptions = sdpsettings('solver','mosek','verbose',0);
             isSoft = 1; % Whether to use a soft or hard graph constraint
@@ -1129,12 +1124,7 @@ classdef Vehicle < handle
             disp(['Stabilizing at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
             
             status = obj.synthesizeLocalControllers(1,nuBar,rhoBar);
-            if status == 1
-                disp(['Local Passivating Controller at Vehicle',num2str(iInd+1),' Synthesis Success.'])
-            else
-                disp(['Local Passivating Controller at Vehicle',num2str(iInd+1),' Synthesis Failed.'])
-            end
-            
+                        
             % Seting up the LMI problem
             solverOptions = sdpsettings('solver','mosek','verbose',0);
             isSoft = 1; % Whether to use a soft or hard graph constraint

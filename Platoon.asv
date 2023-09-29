@@ -534,6 +534,7 @@ classdef Platoon < handle
             
             % Whether to use a soft or hard graph constraint
             isSoft = 1;
+            normType = 2;
 
             Q = sdpvar(3*N,3*N,'full'); 
             P = sdpvar(N,N,'diagonal');
@@ -766,7 +767,7 @@ classdef Platoon < handle
             X_21 = X_12';
             
             % Objective Function
-            costFun = norm(Q.*costMatBlock,1) + 0*norm(Q.*nullMatBlock,2);
+            costFun = norm(Q.*costMatBlock,2) + 0*norm(Q.*nullMatBlock,2);
             
             % Budget Constraints
             % con01 = costFun <= 1;
@@ -848,7 +849,7 @@ classdef Platoon < handle
         
 
         % Decentralized Stabilizing Controller Synthesis (Error Dynamics II)
-        function status = decentralizedStabilizingControllerSynthesis2(obj,nuBar,rhoBar,gammaSqBar)
+        function status = decentralizedStabilizingControllerSynthesis2(obj,nuBar,rhoBar)
 
             if isempty(indexing)
                 indexing = [1:1:(length(obj.vehicles)-1)];
@@ -857,7 +858,7 @@ classdef Platoon < handle
             for i = 1:1:length(indexing)
                 iInd = indexing(i);
                 previousSubsystems = indexing(1:i-1);                
-                [isStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd).stabilizingControllerSynthesis2(previousSubsystems, obj.vehicles, nuBar, rhoBar, gammaSqBar);
+                [isStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd).stabilizingControllerSynthesis2(previousSubsystems, obj.vehicles, nuBar, rhoBar);
 
                 K{iInd,iInd} = K_ii;
                 for j = 1:1:length(previousSubsystems)
@@ -1036,7 +1037,7 @@ classdef Platoon < handle
 
 
         % Decentralized Robust Controller Synthesis (Error Dynamics Formulation II)
-        function status = decentralizedRobustControllerSynthesis2(obj)
+        function status = decentralizedRobustControllerSynthesis2(obj,nuBar,rhoBar,gammaSqBar)
 
             if isempty(indexing)
                 indexing = [1:1:(length(obj.vehicles)-1)];
@@ -1045,7 +1046,7 @@ classdef Platoon < handle
             for i = 1:1:length(indexing)
                 iInd = indexing(i);
                 previousSubsystems = indexing(1:i-1);                
-                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd).robustControllerSynthesis2(previousSubsystems, obj.vehicles);
+                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd).robustControllerSynthesis2(previousSubsystems, obj.vehicles, nuBar, rhoBar, gammaSqBar);
 
                 K{iInd,iInd} = K_ii;
                 for j = 1:1:length(previousSubsystems)

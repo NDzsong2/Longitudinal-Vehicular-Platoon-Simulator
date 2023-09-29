@@ -341,8 +341,8 @@ classdef Vehicle < handle
             con3 = W >= 0;
             
             % Some modesty constraints on resulting nu and rho from the local design
-            con4 = nu >= nuBar;       % -8.1
-            con5 = rhoBar >= rhoBarBar;   % 1/4.1
+            con4 = nu >= nuBar;             % -8.1
+            con5 = rhoBar >= rhoBarBar;     % 1/4.1
 
             % Total Cost and Constraints
             cons = [con1,con2,con3,con4,con5];
@@ -352,12 +352,12 @@ classdef Vehicle < handle
             sol = optimize(cons,costFun,solverOptions);
             status = sol.problem == 0; % sol.info;
 
-            PVal = value(P);
-            KVal = value(K);
-            LVal = KVal/PVal;
+            PVal = value(P)
+            KVal = value(K)
+            LVal = KVal/PVal
             
-            nuVal = value(nu);
-            rhoVal = 1/value(rhoBar);
+            nuVal = value(nu)
+            rhoVal = 1/value(rhoBar)
             
             % Updating the information
             obj.nu = nuVal;
@@ -365,6 +365,12 @@ classdef Vehicle < handle
 
             obj.localControllerGains1 = LVal; % Here we need \bar{k}_{i0}^{Local} = 1
             obj.localControllerGains2 = LVal; 
+
+            if status == 1
+                disp(['Synthesis Success at Vehicle ',num2str(obj.vehicleIndex),'.'])
+            else
+                disp(['Synthesis Failed at Vehicle ',num2str(obj.vehicleIndex),'.'])
+            end
             
         end
 
@@ -377,12 +383,7 @@ classdef Vehicle < handle
             disp(['Stabilizing at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
             
             status = obj.synthesizeLocalControllers(1,nuBar,rhoBar);
-            if status == 1
-                disp(['Local Passivating Controller at Vehicle',num2str(iInd+1),' Synthesis Success.'])
-            else
-                disp(['Local Passivating Controller at Vehicle',num2str(iInd+1),' Synthesis Failed.'])
-            end
-            
+                        
             % Seting up the LMI problem
             solverOptions = sdpsettings('solver','mosek','verbose',0);
             isSoft = 1; % Whether to use a soft or hard graph constraint
@@ -612,19 +613,14 @@ classdef Vehicle < handle
 
 
         %% Decentralized Robust Controller Synthesis (Error Dynamics I)
-        function [isRobustStabilizable,K_ii,K_ijVals,K_jiVals] = robustControllerSynthesis1(obj, previousSubsystems, subsystems)
+        function [isRobustStabilizable,K_ii,K_ijVals,K_jiVals] = robustControllerSynthesis1(obj, previousSubsystems, subsystems, nuBar, rhoBar, gammaSqBar)
 
             i = length(previousSubsystems)+1;
             iInd = obj.vehicleIndex-1;
             disp(['Stabilizing at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
             
-            status = obj.synthesizeLocalControllers(1);
-            if status == 1
-                disp(['Local Passivating Controller at Vehicle',num2str(iInd+1),' Synthesis Success.'])
-            else
-                disp(['Local Passivating Controller at Vehicle',num2str(iInd+1),' Synthesis Failed.'])
-            end
-            
+            status = obj.synthesizeLocalControllers(1,nuBar,rhoBar);
+                        
             % Seting up the LMI problem
             solverOptions = sdpsettings('solver','mosek','verbose',0);
             isSoft = 1; % Whether to use a soft or hard graph constraint
@@ -643,9 +639,6 @@ classdef Vehicle < handle
             X_ii_21 = X_ii_12';
 
             obj.dataToBeDistributed.X = X_ii_12;
-
-            % Desired maximum noise attenuation level: L2Gain from w to e
-            gammaSqBar = 10;
 
             null_ii = [1,1,1; 1,1,0; 0,0,0];
             % adj_ii = [0,0,0; 0,0,1; 1,1,1];
@@ -889,13 +882,8 @@ classdef Vehicle < handle
             iInd = obj.vehicleIndex-1;
             disp(['Stabilizing at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
             
-            status = obj.synthesizeLocalControllers(1);
-            if status == 1
-                disp(['Local Passivating Controller at Vehicle',num2str(iInd+1),' Synthesis Success.'])
-            else
-                disp(['Local Passivating Controller at Vehicle',num2str(iInd+1),' Synthesis Failed.'])
-            end
-            
+            status = obj.synthesizeLocalControllers(1,nuBar,rhoBar);
+                        
             % Seting up the LMI problem
             solverOptions = sdpsettings('solver','mosek','verbose',0);
             isSoft = 1; % Whether to use a soft or hard graph constraint
@@ -1125,19 +1113,14 @@ classdef Vehicle < handle
 
 
         %% Decentralized Robust Controller Synthesis (Error Dynamics II)
-        function [isRobustStabilizable,K_ii,K_ijVals,K_jiVals] = robustControllerSynthesis2(obj, previousSubsystems, subsystems)
+        function [isRobustStabilizable,K_ii,K_ijVals,K_jiVals] = robustControllerSynthesis2(obj, previousSubsystems, subsystems, nuBar, rhoBar, gammaSqBar)
 
             i = length(previousSubsystems)+1;
             iInd = obj.vehicleIndex-1;
             disp(['Stabilizing at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
             
-            status = obj.synthesizeLocalControllers(1);
-            if status == 1
-                disp(['Local Passivating Controller at Vehicle',num2str(iInd+1),' Synthesis Success.'])
-            else
-                disp(['Local Passivating Controller at Vehicle',num2str(iInd+1),' Synthesis Failed.'])
-            end
-            
+            status = obj.synthesizeLocalControllers(1,nuBar,rhoBar);
+                        
             % Seting up the LMI problem
             solverOptions = sdpsettings('solver','mosek','verbose',0);
             isSoft = 1; % Whether to use a soft or hard graph constraint
@@ -1156,9 +1139,6 @@ classdef Vehicle < handle
             X_ii_21 = X_ii_12';
 
             obj.dataToBeDistributed.X = X_ii_12;
-
-            % Desired maximum noise attenuation level: L2Gain from w to e
-            gammaSqBar = 10;
 
             null_ii = [1,1,1; 1,1,1; 0,0,0];
             % adj_ii = [0,0,0; 0,0,0; 1,1,1];

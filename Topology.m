@@ -11,7 +11,6 @@ classdef Topology < handle
 
         inNeighbors
         outNeighbors
-        graphics
     end
 
     methods
