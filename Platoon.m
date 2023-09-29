@@ -114,6 +114,11 @@ classdef Platoon < handle
         function outputArg = drawTopology(obj,figNum)
             figure(figNum); hold on;
 
+            if ~isempty(obj.graphics1)
+                delete(obj.graphics1);
+                delete(obj.graphics2);
+            end
+
             numOfLinks = length(obj.topology.startNodes);
             for i = 1:1:numOfLinks
                 % Draw a link
@@ -282,15 +287,11 @@ classdef Platoon < handle
             
             % Whether to use a soft or hard graph constraint
             isSoft = 1;
+            normType = 2;
             
             % Load local controllers/passivity indices
             for i = 1:1:N
                 status = obj.vehicles(i+1).synthesizeLocalControllers(1,nuBar,rhoBar);
-                if status == 1
-                    disp(['Local Passivating Controller at Vehicle',num2str(i+1),' Synthesis Success.'])
-                else
-                    disp(['Local Passivating Controller at Vehicle',num2str(i+1),' Synthesis Failed.'])
-                end
             end            
             
             % Creating the adgacency matrix, null matrix and cost matrix
@@ -345,7 +346,7 @@ classdef Platoon < handle
             X_21 = X_12';
             
             % Objective Function
-            costFun = norm(Q.*costMatBlock,2) + 0*norm(Q.*nullMatBlock,2);
+            costFun = norm(Q.*costMatBlock,normType) + 0*norm(Q.*nullMatBlock,normType);
             
             % Budget Constraints
             % con01 = costFun <= 1;
@@ -374,7 +375,6 @@ classdef Platoon < handle
             end
             
             sol = optimize(cons,[costFun],solverOptions);
-            sol.info
             status = sol.problem == 0; %sol.info;
             
             costFunVal = value(costFun);
@@ -389,7 +389,7 @@ classdef Platoon < handle
             % What I guess we need to have hear (when nu\neq 0) 
             X_p_11Val = value(X_p_11);
             X_p_21Val = value(X_p_21);
-            M_neVal = X_p_11Val\QVal
+            M_neVal = X_p_11Val\QVal;
             
             % Obtaining K_ij blocks (Blocking and Filtering)
             M_neVal(nullMatBlock==1) = 0;
@@ -475,11 +475,6 @@ classdef Platoon < handle
             % Load local controllers and resulting passivity indices
             for i = 1:1:N
                 status = obj.vehicles(i+1).synthesizeLocalControllers(1,nuBar,rhoBar);
-                if status == 1
-                    disp(['Local Passivating Controller at Vehicle',num2str(i+1),' Synthesis Success.'])
-                else
-                    disp(['Local Passivating Controller at Vehicle',num2str(i+1),' Synthesis Failed.'])
-                end
             end
 
 %             %% Passivity indices type
@@ -534,6 +529,7 @@ classdef Platoon < handle
             
             % Whether to use a soft or hard graph constraint
             isSoft = 1;
+            normType = 2;
 
             Q = sdpvar(3*N,3*N,'full'); 
             P = sdpvar(N,N,'diagonal');
@@ -556,7 +552,7 @@ classdef Platoon < handle
             X_21 = X_12';
             
             % Objective Function
-            costFun = norm(Q.*costMatBlock,2) + 0*norm(Q.*nullMatBlock,2);
+            costFun = norm(Q.*costMatBlock,normType) + 0*norm(Q.*nullMatBlock,normType);
 
             % Budget Constraints (Not at this stage)
             % con01 = costFun <= 1;
@@ -602,7 +598,6 @@ classdef Platoon < handle
             end
             
             sol = optimize(cons,[costFun],solverOptions);
-            sol.info
             status = sol.problem == 0; %sol.info;
             
             costFunVal = value(costFun);
@@ -613,7 +608,7 @@ classdef Platoon < handle
 
             gammaSqVal = value(gammaSq)
 
-            M_neVal = X_p_11Val\QVal
+            M_neVal = X_p_11Val\QVal;
             
 %             if passivityInfoType==1
 %                 M_neVal = X_p_11Val\QVal
@@ -703,15 +698,11 @@ classdef Platoon < handle
             
             % Whether to use a soft or hard graph constraint
             isSoft = 1;
+            normType = 2;
             
             % Load local controllers/passivity indices
             for i = 1:1:N
                 status = obj.vehicles(i+1).synthesizeLocalControllers(2,nuBar,rhoBar);
-                if status == 1
-                    disp(['Local Passivating Controller at Vehicle',num2str(i+1),' Synthesis Success.'])
-                else
-                    disp(['Local Passivating Controller at Vehicle',num2str(i+1),' Synthesis Failed.'])
-                end
             end            
             
             % Creating the adgacency matrix, null matrix and cost matrix
@@ -766,7 +757,7 @@ classdef Platoon < handle
             X_21 = X_12';
             
             % Objective Function
-            costFun = norm(Q.*costMatBlock,1) + 0*norm(Q.*nullMatBlock,2);
+            costFun = norm(Q.*costMatBlock,normType) + 0*norm(Q.*nullMatBlock,normType);
             
             % Budget Constraints
             % con01 = costFun <= 1;
@@ -795,7 +786,6 @@ classdef Platoon < handle
             end
             
             sol = optimize(cons,[costFun],solverOptions);
-            sol.info
             status = sol.problem == 0; %sol.info;
             
             costFunVal = value(costFun);
@@ -810,7 +800,7 @@ classdef Platoon < handle
             % What I guess we need to have hear (when nu\neq 0) 
             X_p_11Val = value(X_p_11);
             X_p_21Val = value(X_p_21);
-            M_neVal = X_p_11Val\QVal
+            M_neVal = X_p_11Val\QVal;
             
             % Obtaining K_ij blocks
             M_neVal(nullMatBlock==1) = 0;
@@ -892,11 +882,6 @@ classdef Platoon < handle
             % Load local controllers and resulting passivity indices
             for i = 1:1:N
                 status = obj.vehicles(i+1).synthesizeLocalControllers(2,nuBar,rhoBar);
-                if status == 1
-                    disp(['Local Passivating Controller at Vehicle',num2str(i+1),' Synthesis Success.'])
-                else
-                    disp(['Local Passivating Controller at Vehicle',num2str(i+1),' Synthesis Failed.'])
-                end
             end
             
             % Creating the adgacency matrix, null matrix and cost matrix
@@ -934,6 +919,7 @@ classdef Platoon < handle
 
             % Whether to use a soft or hard graph constraint
             isSoft = 1;
+            normType = 2;
 
             Q = sdpvar(3*N,3*N,'full'); 
             P = sdpvar(N,N,'diagonal');
@@ -956,7 +942,7 @@ classdef Platoon < handle
             X_21 = X_12';
             
             % Objective Function
-            costFun = norm(Q.*costMatBlock,2) + 0*norm(Q.*nullMatBlock,2);
+            costFun = norm(Q.*costMatBlock,normType) + 0*norm(Q.*nullMatBlock,normType);
             
             % Budget Constraints (Not at this stage)
             % con01 = costFun <= 1;
@@ -987,7 +973,6 @@ classdef Platoon < handle
             end
             
             sol = optimize(cons,[costFun],solverOptions);
-            sol.info
             status = sol.problem == 0; %sol.info;
             
             costFunVal = value(costFun);
@@ -998,7 +983,7 @@ classdef Platoon < handle
 
             gammaSqVal = value(gammaSq)
 
-            M_neVal = X_p_11Val\QVal
+            M_neVal = X_p_11Val\QVal;
             
             % Obtaining K_ij blocks
             M_neVal(nullMatBlock==1) = 0;

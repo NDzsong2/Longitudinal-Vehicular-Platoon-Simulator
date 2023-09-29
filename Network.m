@@ -45,6 +45,15 @@ classdef Network < handle
         function outputArg = drawNetwork(obj,figNum)
             figure(figNum); hold on;
             
+            if ~isempty(obj.graphics)
+                delete(obj.graphics(1));
+                delete(obj.graphics(2)); 
+                delete(obj.graphics(3)); 
+                delete(obj.graphics(4));
+                delete(obj.graphics(5)); 
+                delete(obj.graphics(6));
+            end
+
             % Draw platoons
             for k = 1:1:obj.numOfPlatoons
                 obj.platoons(k).drawPlatoon(figNum);
@@ -57,7 +66,6 @@ classdef Network < handle
             posX1 = lastPlatoon.vehicles(lastPlatoon.numOfVehicles).states(1)-10;
             posX2 = obj.platoons(1).vehicles(1).states(1)+10;
 
-
             % Plot the 3 topics, i.e., time,error,cost, on the top of the simulator
             obj.graphics(1) = text(posX1+5,posY2-5,['Time: ',num2str(obj.time)],'FontSize',12);
             obj.graphics(2) = text(posX1+30,posY2-5,['Error: ',num2str(round(norm(obj.error),1))],'FontSize',12);
@@ -66,7 +74,6 @@ classdef Network < handle
             obj.graphics(4) = text(posX1+5,posY2-8,['P-Error: ',num2str(round(obj.error(1),1))],'FontSize',12);
             obj.graphics(5) = text(posX1+30,posY2-8,['V-Error: ',num2str(round(obj.error(2),1))],'FontSize',12);
             obj.graphics(6) = text(posX1+55,posY2-8,['A-Error: ',num2str(round(obj.error(3),1))],'FontSize',12);
-
 
             axis([posX1,posX2,posY1,posY2])
         end
@@ -141,6 +148,7 @@ classdef Network < handle
                 obj.graphics(6) = text(posX1+55,posY2-8,['A-Error: ',num2str(round(obj.error(3),1))],'FontSize',12);  
 
                 axis([posX1,posX2,posY1,posY2])
+                % axis([min(posX1,posX2),max(posX1,posX2),posY1,posY2])
             end
 
         end
@@ -222,9 +230,9 @@ classdef Network < handle
                 
                 % Success or Failure
                 if status == 1
-                    disp(['Global Controller ',num2str(k),' Synthesis Success.']);
+                    disp(['Synthesis Success at Platoon ',num2str(k),'.']);
                 else
-                    disp(['Global Controller ',num2str(k),' Synthesis Failed.']);
+                    disp(['Synthesis Failed at Platoon ',num2str(k),'.']);
                 end
                 
             end
