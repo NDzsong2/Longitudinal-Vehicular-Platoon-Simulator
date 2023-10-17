@@ -217,7 +217,7 @@ classdef Network < handle
                         if isOnlyStabilizing == 1   % Only Stabilizing
                             status = obj.platoons(k).centralizedStabilizingControllerSynthesis2(nuBar,rhoBar);
                         else                        % Robust
-                            status = obj.platoons(k).centralizedRobustControllerSynthesis2(pVals(k,:));
+                            status = obj.platoons(k).centralizedRobustControllerSynthesis2(pVals(k,:)); % nuBar,rhoBar,gammaSqBar are no longer needed
                         end
                     else                            % Decentralized
                         if isOnlyStabilizing == 1   % Only Stabilizing

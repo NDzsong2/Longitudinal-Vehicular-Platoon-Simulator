@@ -1059,7 +1059,7 @@ classdef Platoon < handle
         end 
 
 
-        % Compact function for co-design : Centralized Robust Controller Synthesis (Error Dynamics II) 
+        % Compact objective function for co-design : Centralized Robust Controller Synthesis (Error Dynamics II) 
         function gammaSqVal = centralizedRobustControllerSynthesis2Compact(obj,pVals)
             
             % Number of follower vehicles
@@ -1233,14 +1233,14 @@ classdef Platoon < handle
 
 
 
-        % Feasibility constraints for CO-Design
+        % Feasibility constraints for Co-Design : Centralized Robust Controller Synthesis (Error Dynamics II) 
         function [C,Ceq] = centralizedRobustControllerSynthesis2Feasibility(obj,pVals)
             
             % Number of follower vehicles
             N = obj.numOfVehicles-1; 
             
             % Load local controllers and resulting passivity indices
-            statusLVals = []
+            statusLVals = [];
             LVals = [];
             nuVals = [];
             rhoVals = [];
@@ -1354,7 +1354,7 @@ classdef Platoon < handle
             end
             
             sol = optimize(cons,[costFun],solverOptions);
-            status = sol.problem == 0; %sol.info;
+            statusG = sol.problem == 0; %sol.info;
             
             costFun0Val = value(costFun0);
             costFunVal = value(costFun);
@@ -1398,8 +1398,11 @@ classdef Platoon < handle
 
                 end
             end
-      
+            % K
 
+            statusK = norm(LVals) <= 10000*N;
+            C = [statusLVals-ones(N,1); statusG-1; statusK-1];
+            Ceq = [];
 
         end  
 
@@ -1727,6 +1730,16 @@ classdef Platoon < handle
             f = @(P)obj.centralizedRobustControllerSynthesis2Compact(P);
             nonlcon = @(P)obj.centralizedRobustControllerSynthesis2Feasibility(P);
             
+            % pARAMETERS
+            options = optimoptions('fmincon');
+ 
+            % Set OptimalityTolerance to 1e-3
+            options = optimoptions(options, 'OptimalityTolerance', 1e-3); 
+     
+            % Set the Display option to 'iter' and StepTolerance to 1e-4
+            options.Display = 'iter';
+            options.StepTolerance = 1e-4;
+
             A = [];
             b = [];
             Aeq = [];
@@ -1735,7 +1748,7 @@ classdef Platoon < handle
             ub = inf*ones(N,1);
             
             p0 = 0.15*ones(N,1); % initial condition
-            [p,fval] = fmincon(f,p0,A,b,Aeq,beq,lb,ub,nonlcon)
+            [pVals,fval] = fmincon(f,p0,A,b,Aeq,beq,lb,ub,nonlcon,options)
 %             [pVals,fval] = fmincon(f,p0,A,b,Aeq,beq,lb,ub)
             % p = 0.0449
             

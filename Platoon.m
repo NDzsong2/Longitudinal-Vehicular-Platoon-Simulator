@@ -1175,52 +1175,53 @@ classdef Platoon < handle
             sol = optimize(cons,[costFun],solverOptions);
             status = sol.problem == 0; %sol.info;
             
-            costFun0Val = value(costFun0);
-            costFunVal = value(costFun);
-            PVal = value(P);
-            QVal = value(Q);
-            X_p_11Val = value(X_p_11);
-            X_p_21Val = value(X_p_21);
-
+%             costFun0Val = value(costFun0);
+%             costFunVal = value(costFun);
+%             PVal = value(P);
+%             QVal = value(Q);
+%             X_p_11Val = value(X_p_11);
+%             X_p_21Val = value(X_p_21);
+% 
             gammaSqVal = value(gammaSq);
-
-            M_neVal = X_p_11Val\QVal;
-            
-            % Obtaining K_ij blocks
-            M_neVal(nullMatBlock==1) = 0;
-            maxNorm = 0;
-            for i = 1:1:N
-                for j = 1:1:N
-                    K{i,j} = M_neVal(3*(i-1)+1:3*i , 3*(j-1)+1:3*j); % (i,j)-th (3 x 3) block
-                    normVal = max(max(abs(K{i,j})));
-                    if normVal>maxNorm 
-                        maxNorm = normVal;
-                    end
-                end
-            end
-            
-            % filtering out extremely small interconnections
-            for i=1:1:N
-                for j=1:1:N
-                    if i~=j
-                        if isSoft
-                            K{i,j}(abs(K{i,j})<0.0001*maxNorm) = 0;                       
-                        else
-                            if A(i+1,j+1)==0
-                                K{i,j} = zeros(3);
-                            end
-                        end
-                    end
-                    
-                    K_ijMax = max(abs(K{i,j}(:)));
-                    K{i,j}(abs(K{i,j})<0.01*K_ijMax) = 0;
-
-                end
-            end
+% 
+%             M_neVal = X_p_11Val\QVal;
+%             
+%             % Obtaining K_ij blocks
+%             M_neVal(nullMatBlock==1) = 0;
+%             maxNorm = 0;
+%             for i = 1:1:N
+%                 for j = 1:1:N
+%                     K{i,j} = M_neVal(3*(i-1)+1:3*i , 3*(j-1)+1:3*j); % (i,j)-th (3 x 3) block
+%                     normVal = max(max(abs(K{i,j})));
+%                     if normVal>maxNorm 
+%                         maxNorm = normVal;
+%                     end
+%                 end
+%             end
+%             
+%             % filtering out extremely small interconnections
+%             for i=1:1:N
+%                 for j=1:1:N
+%                     if i~=j
+%                         if isSoft
+%                             K{i,j}(abs(K{i,j})<0.0001*maxNorm) = 0;                       
+%                         else
+%                             if A(i+1,j+1)==0
+%                                 K{i,j} = zeros(3);
+%                             end
+%                         end
+%                     end
+%                     
+%                     K_ijMax = max(abs(K{i,j}(:)));
+%                     K{i,j}(abs(K{i,j})<0.01*K_ijMax) = 0;
+% 
+%                 end
+%             end
       
 %             K
 %             obj.loadTopologyFromK2(K);
 %             obj.loadControllerGains2(K);
+
             if status == 1
                 disp(['Global Synthesis Success with gammaSq=',num2str(value(gammaSqVal))])
             else
@@ -1356,48 +1357,48 @@ classdef Platoon < handle
             sol = optimize(cons,[costFun],solverOptions);
             statusG = sol.problem == 0; %sol.info;
             
-            costFun0Val = value(costFun0);
-            costFunVal = value(costFun);
-            PVal = value(P);
-            QVal = value(Q);
-            X_p_11Val = value(X_p_11);
-            X_p_21Val = value(X_p_21);
-
-            gammaSqVal = value(gammaSq);
-
-            M_neVal = X_p_11Val\QVal;
-            
-            % Obtaining K_ij blocks
-            M_neVal(nullMatBlock==1) = 0;
-            maxNorm = 0;
-            for i = 1:1:N
-                for j = 1:1:N
-                    K{i,j} = M_neVal(3*(i-1)+1:3*i , 3*(j-1)+1:3*j); % (i,j)-th (3 x 3) block
-                    normVal = max(max(abs(K{i,j})));
-                    if normVal>maxNorm 
-                        maxNorm = normVal;
-                    end
-                end
-            end
-            
-            % filtering out extremely small interconnections
-            for i=1:1:N
-                for j=1:1:N
-                    if i~=j
-                        if isSoft
-                            K{i,j}(abs(K{i,j})<0.0001*maxNorm) = 0;                       
-                        else
-                            if A(i+1,j+1)==0
-                                K{i,j} = zeros(3);
-                            end
-                        end
-                    end
-                    
-                    K_ijMax = max(abs(K{i,j}(:)));
-                    K{i,j}(abs(K{i,j})<0.01*K_ijMax) = 0;
-
-                end
-            end
+%             costFun0Val = value(costFun0);
+%             costFunVal = value(costFun);
+%             PVal = value(P);
+%             QVal = value(Q);
+%             X_p_11Val = value(X_p_11);
+%             X_p_21Val = value(X_p_21);
+% 
+%             gammaSqVal = value(gammaSq);
+% 
+%             M_neVal = X_p_11Val\QVal;
+%             
+%             % Obtaining K_ij blocks
+%             M_neVal(nullMatBlock==1) = 0;
+%             maxNorm = 0;
+%             for i = 1:1:N
+%                 for j = 1:1:N
+%                     K{i,j} = M_neVal(3*(i-1)+1:3*i , 3*(j-1)+1:3*j); % (i,j)-th (3 x 3) block
+%                     normVal = max(max(abs(K{i,j})));
+%                     if normVal>maxNorm 
+%                         maxNorm = normVal;
+%                     end
+%                 end
+%             end
+%             
+%             % filtering out extremely small interconnections
+%             for i=1:1:N
+%                 for j=1:1:N
+%                     if i~=j
+%                         if isSoft
+%                             K{i,j}(abs(K{i,j})<0.0001*maxNorm) = 0;                       
+%                         else
+%                             if A(i+1,j+1)==0
+%                                 K{i,j} = zeros(3);
+%                             end
+%                         end
+%                     end
+%                     
+%                     K_ijMax = max(abs(K{i,j}(:)));
+%                     K{i,j}(abs(K{i,j})<0.01*K_ijMax) = 0;
+% 
+%                 end
+%             end
             % K
 
             statusK = norm(LVals) <= 10000*N;
