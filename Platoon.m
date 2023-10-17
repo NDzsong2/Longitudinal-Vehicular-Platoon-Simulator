@@ -353,7 +353,7 @@ classdef Platoon < handle
             
             % Basic Constraints
             con1 = P >= 0;
-            con2 = trace(P) == 1;
+            %%con2 = trace(P) == 1;
             
             DMat = [X_p_11];
             MMat = [Q];
@@ -367,10 +367,10 @@ classdef Platoon < handle
             
             % Total Cost and Constraints
             if isSoft
-                cons = [con1,con2,con3,con4]; % Without the hard graph constraint con7
+                cons = [con1,con3,con4]; % Without the hard graph constraint con7
                 costFun = 1*costFun; % soft 
             else
-                cons = [con1,con2,con3,con4,con5]; % With the hard graph constraint con7
+                cons = [con1,con3,con4,con5]; % With the hard graph constraint con7
                 costFun = 1*costFun; % hard (same as soft)
             end
             
@@ -559,7 +559,7 @@ classdef Platoon < handle
 
             % Basic Constraints
             con1 = P >= 0;
-            con2 = trace(P) == 1;
+            %%con2 = trace(P) == 1;
             con3 = gammaSq >= 0;
             
             DMat = [X_p_11, O; O, I];
@@ -583,7 +583,7 @@ classdef Platoon < handle
 %             end
 
             % Structural constraints
-            con5 = Q.*(nullMatBlock==1)==O  % Structural limitations (due to the format of the control law)
+            con5 = Q.*(nullMatBlock==1)==O;  % Structural limitations (due to the format of the control law)
             con6 = Q.*(adjMatBlock==0)==O;  % Graph structure : hard constraint
 
             con7 = gammaSq <= gammaSqBar;
@@ -593,7 +593,7 @@ classdef Platoon < handle
                 cons = [con1,con3,con4,con5,con7]; % Without the hard graph constraint con7
                 costFun = 1*costFun + 1*gammaSq; % soft 
             else
-                cons = [con1,con2,con3,con4,con5,con6,con7]; % With the hard graph constraint con7
+                cons = [con1,con3,con4,con5,con6,con7]; % With the hard graph constraint con7
                 costFun = 1*costFun + 1*gammaSq; % hard (same as soft)
             end
             
@@ -601,7 +601,7 @@ classdef Platoon < handle
             status = sol.problem == 0; %sol.info;
             
             costFunVal = value(costFun);
-            PVal = value(P);
+            PVal = value(P)
             QVal = value(Q);
             X_p_11Val = value(X_p_11);
             X_p_21Val = value(X_p_21);
@@ -764,7 +764,7 @@ classdef Platoon < handle
             
             % Basic Constraints
             con1 = P >= 0;
-            con2 = trace(P) == 1;
+            %%con2 = trace(P) == 1;
             
             DMat = [X_p_11];
             MMat = [Q];
@@ -778,10 +778,10 @@ classdef Platoon < handle
             
             % Total Cost and Constraints
             if isSoft
-                cons = [con1,con2,con3,con4]; % Without the hard graph constraint con7
+                cons = [con1,con3,con4]; % Without the hard graph constraint con7
                 costFun = 1*costFun; % soft 
             else
-                cons = [con1,con2,con3,con4,con5]; % With the hard graph constraint con7
+                cons = [con1,con3,con4,con5]; % With the hard graph constraint con7
                 costFun = 1*costFun; % hard (same as soft)
             end
             
@@ -874,14 +874,15 @@ classdef Platoon < handle
         %% Robust Controller Synthesis using Error Dynamics Formulation II
 
         % Centralized Robust Controller Synthesis (Error Dynamics II) 
-        function status = centralizedRobustControllerSynthesis2(obj,nuBar,rhoBar,gammaSqBar)
+        function status = centralizedRobustControllerSynthesis2(obj,pVals)
             
             % Number of follower vehicles
             N = obj.numOfVehicles-1; 
             
             % Load local controllers and resulting passivity indices
             for i = 1:1:N
-                status = obj.vehicles(i+1).synthesizeLocalControllers(2,nuBar,rhoBar);
+                p_i = pVals(i);
+                obj.vehicles(i+1).synthesizeLocalControllersParameterized(2,p_i);
             end
             
             % Creating the adgacency matrix, null matrix and cost matrix
@@ -894,16 +895,16 @@ classdef Platoon < handle
                         if A(j+1,i+1)==1
                             adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
                             nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
-                            costMatBlock{i,j} = 0.01*[0,0,0; 0,0,0; 1,1,1];
+                            costMatBlock{i,j} = 1*[0,0,0; 0,0,0; 1,1,1];
                         else
                             adjMatBlock{i,j} = [0,0,0; 0,0,0; 0,0,0];
                             nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
-                            costMatBlock{i,j} = 1*[0,0,0; 0,0,0; 1,1,1];
+                            costMatBlock{i,j} = 10*[0,0,0; 0,0,0; 1,1,1];
                         end
                     else
                         adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
                         nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
-                        costMatBlock{i,j} = 1*[0,0,0; 0,0,0; 1,1,1];
+                        costMatBlock{i,j} = 0*[0,0,0; 0,0,0; 1,1,1];
                     end
                 end 
             end
@@ -919,7 +920,7 @@ classdef Platoon < handle
 
             % Whether to use a soft or hard graph constraint
             isSoft = 1;
-            normType = 2;
+            % normType = 2;
 
             Q = sdpvar(3*N,3*N,'full'); 
             P = sdpvar(N,N,'diagonal');
@@ -942,41 +943,40 @@ classdef Platoon < handle
             X_21 = X_12';
             
             % Objective Function
-            costFun = norm(Q.*costMatBlock,normType) + 0*norm(Q.*nullMatBlock,normType);
-            
-            % Budget Constraints (Not at this stage)
-            % con01 = costFun <= 1;
+            % costFun = 1*norm(Q.*costMatBlock,normType);
+            costFun0 = sum(sum(Q.*costMatBlock));
+    
+            % Minimum Budget Constraints
+            con0 = costFun0 >= 1;
                         
             % Basic Constraints
             con1 = P >= 0;
-            con2 = trace(P) == 1;
-            con3 = gammaSq >= 0;
 
             DMat = [X_p_11, O; O, I];
             MMat = [Q, X_p_11; I, O];
             ThetaMat = [-X_21*Q-Q'*X_12-X_p_22, -X_p_21; -X_p_12, gammaSq*I];
-            con4 = [DMat, MMat; MMat', ThetaMat] >= 0; % The real one
+            con2 = [DMat, MMat; MMat', ThetaMat] >= 0; % The real one
             
             % Structural constraints
-            con5 = Q.*(nullMatBlock==1)==O;  % Structural limitations (due to the format of the control law)
-            con6 = Q.*(adjMatBlock==0)==O;  % Graph structure : hard constraint
-                        
-            con7 = gammaSq <= gammaSqBar;
+            con3 = Q.*(nullMatBlock==1)==O;  % Structural limitations (due to the format of the control law)
+            con4 = Q.*(adjMatBlock==0)==O;  % Graph structure : hard constraint
+            
             
             % Total Cost and Constraints
             if isSoft
-                cons = [con1,con3,con4,con5,con7]; % Without the hard graph constraint con7
-                costFun = 1*costFun + 1*gammaSq; % soft 
+                cons = [con0,con1,con2,con3]; % Without the hard graph constraint con7
+                costFun = 1*costFun0 + 1*gammaSq; % soft 
             else
-                cons = [con1,con3,con4,con5,con6,con7]; % With the hard graph constraint con7
-                costFun = 1*costFun + 1*gammaSq; % hard (same as soft)
+                cons = [con0,con1,con2,con3,con4]; % With the hard graph constraint con7
+                costFun = 1*costFun0 + 1*gammaSq; % hard (same as soft)
             end
             
             sol = optimize(cons,[costFun],solverOptions);
             status = sol.problem == 0; %sol.info;
             
-            costFunVal = value(costFun);
-            PVal = value(P);
+            costFun0Val = value(costFun0)
+            costFunVal = value(costFun)
+            PVal = value(P)
             QVal = value(Q);
             X_p_11Val = value(X_p_11);
             X_p_21Val = value(X_p_21);
@@ -1003,13 +1003,17 @@ classdef Platoon < handle
                 for j=1:1:N
                     if i~=j
                         if isSoft
-                            K{i,j}(abs(K{i,j})<0.000001*maxNorm) = 0;                       
+                            K{i,j}(abs(K{i,j})<0.0001*maxNorm) = 0;                       
                         else
                             if A(i+1,j+1)==0
                                 K{i,j} = zeros(3);
                             end
                         end
-                    end        
+                    end
+                    
+                    K_ijMax = max(abs(K{i,j}(:)));
+                    K{i,j}(abs(K{i,j})<0.01*K_ijMax) = 0;
+
                 end
             end
       
@@ -1019,6 +1023,7 @@ classdef Platoon < handle
 
         end       
 
+        
 
         % Decentralized Robust Controller Synthesis (Error Dynamics Formulation II)
         function status = decentralizedRobustControllerSynthesis2(obj,nuBar,rhoBar,gammaSqBar)
@@ -1054,6 +1059,352 @@ classdef Platoon < handle
         end 
 
 
+        % Compact objective function for co-design : Centralized Robust Controller Synthesis (Error Dynamics II) 
+        function gammaSqVal = centralizedRobustControllerSynthesis2Compact(obj,pVals)
+            
+            % Number of follower vehicles
+            N = obj.numOfVehicles-1; 
+            
+            % Load local controllers and resulting passivity indices
+            LVals = [];
+            nuVals = [];
+            rhoVals = [];
+            gammaSqVals = [];
+            for i = 1:1:N
+                p_i = pVals(i);
+                [statusL_i,LVal,nuVal,rhoVal,gammaSqVal] = obj.vehicles(i+1).synthesizeLocalControllersParameterized(2,p_i);
+                if statusL_i == 0
+                    gammaSqVal = 1000000;
+                    return;
+                else 
+                    LVals = [LVals;LVal];
+                    nuVals = [nuVals,nuVal];
+                    rhoVals = [rhoVals,rhoVal];
+                    gammaSqVals = [gammaSqVals,gammaSqVal];
+                end
+            end
+%             disp(['Local Synthesis Success at Vehicles with mean nu=',num2str(mean(nuVals)),'; mean rho=',num2str(mean(rhoVals)),'.'])
+
+            % Creating the adgacency matrix, null matrix and cost matrix
+            G = obj.topology.graph;
+            A = adjacency(G);
+            for i = 1:1:N
+                for j = 1:1:N
+                    % Structure of K_ij (which is a 3x3 matrix) should be embedded here
+                    if i~=j
+                        if A(j+1,i+1)==1
+                            adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
+                            nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
+                            costMatBlock{i,j} = 1*[0,0,0; 0,0,0; 1,1,1];
+                        else
+                            adjMatBlock{i,j} = [0,0,0; 0,0,0; 0,0,0];
+                            nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
+                            costMatBlock{i,j} = 10*[0,0,0; 0,0,0; 1,1,1];
+                        end
+                    else
+                        adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
+                        nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
+                        costMatBlock{i,j} = 0*[0,0,0; 0,0,0; 1,1,1];
+                    end
+                end 
+            end
+            adjMatBlock = cell2mat(adjMatBlock);
+            nullMatBlock = cell2mat(nullMatBlock);
+            costMatBlock = cell2mat(costMatBlock);
+            
+            % Set up the LMI problem
+            solverOptions = sdpsettings('solver','mosek','verbose',0);
+            I = eye(3*N);
+            I_n = eye(3);
+            O = zeros(3*N);
+
+            % Whether to use a soft or hard graph constraint
+            isSoft = 1;
+            normType = 2;
+
+            Q = sdpvar(3*N,3*N,'full'); 
+            P = sdpvar(N,N,'diagonal');
+            gammaSq = sdpvar(1,1,'full');
+
+            X_p_11 = [];
+            X_p_12 = [];
+            X_12 = [];
+            X_p_22 = [];
+            for i = 1:1:N
+%                 nu_i = obj.vehicles(i+1).nu;
+%                 rho_i = obj.vehicles(i+1).rho;
+                nu_i = nuVals(i);
+                rho_i = rhoVals(i);
+                X_p_11 = blkdiag(X_p_11,-nu_i*P(i,i)*I_n);
+                X_p_12 = blkdiag(X_p_12,0.5*P(i,i)*I_n);
+                X_12 = blkdiag(X_12,(-1/(2*nu_i))*I_n);
+                X_p_22 = blkdiag(X_p_22,-rho_i*P(i,i)*I_n);
+            end
+            X_p_21 = X_p_12';
+            X_21 = X_12';
+            
+            % Objective Function
+            % costFun0 = 1*norm(Q.*costMatBlock,normType);
+            costFun0 = sum(sum(Q.*costMatBlock));
+    
+            % Minimum Budget Constraints
+            con0 = costFun0 >= 1;
+                        
+            % Basic Constraints
+            con1 = P >= 0;
+
+            DMat = [X_p_11, O; O, I];
+            MMat = [Q, X_p_11; I, O];
+            ThetaMat = [-X_21*Q-Q'*X_12-X_p_22, -X_p_21; -X_p_12, gammaSq*I];
+            con2 = [DMat, MMat; MMat', ThetaMat] >= 0; % The real one
+            
+            % Structural constraints
+            con3 = Q.*(nullMatBlock==1)==O;  % Structural limitations (due to the format of the control law)
+            con4 = Q.*(adjMatBlock==0)==O;  % Graph structure : hard constraint
+            
+            
+            % Total Cost and Constraints
+            if isSoft
+                cons = [con0,con1,con2,con3]; % Without the hard graph constraint con7
+                costFun = 1*costFun0 + 1*gammaSq; % soft 
+            else
+                cons = [con0,con1,con2,con3,con4]; % With the hard graph constraint con7
+                costFun = 1*costFun0 + 1*gammaSq; % hard (same as soft)
+            end
+            
+            sol = optimize(cons,[costFun],solverOptions);
+            status = sol.problem == 0; %sol.info;
+            
+            costFun0Val = value(costFun0);
+            costFunVal = value(costFun);
+            PVal = value(P);
+            QVal = value(Q);
+            X_p_11Val = value(X_p_11);
+            X_p_21Val = value(X_p_21);
+
+            gammaSqVal = value(gammaSq);
+
+            M_neVal = X_p_11Val\QVal;
+            
+            % Obtaining K_ij blocks
+            M_neVal(nullMatBlock==1) = 0;
+            maxNorm = 0;
+            for i = 1:1:N
+                for j = 1:1:N
+                    K{i,j} = M_neVal(3*(i-1)+1:3*i , 3*(j-1)+1:3*j); % (i,j)-th (3 x 3) block
+                    normVal = max(max(abs(K{i,j})));
+                    if normVal>maxNorm 
+                        maxNorm = normVal;
+                    end
+                end
+            end
+            
+            % filtering out extremely small interconnections
+            for i=1:1:N
+                for j=1:1:N
+                    if i~=j
+                        if isSoft
+                            K{i,j}(abs(K{i,j})<0.0001*maxNorm) = 0;                       
+                        else
+                            if A(i+1,j+1)==0
+                                K{i,j} = zeros(3);
+                            end
+                        end
+                    end
+                    
+                    K_ijMax = max(abs(K{i,j}(:)));
+                    K{i,j}(abs(K{i,j})<0.01*K_ijMax) = 0;
+
+                end
+            end
+      
+%             K
+%             obj.loadTopologyFromK2(K);
+%             obj.loadControllerGains2(K);
+            if status == 1
+                disp(['Global Synthesis Success with gammaSq=',num2str(value(gammaSqVal))])
+            else
+                disp(['Global Synthesis Failed'])
+                gammaSqVal = 1000000; 
+                return;
+            end
+
+        end  
+
+
+
+        % Feasibility constraints for Co-Design : Centralized Robust Controller Synthesis (Error Dynamics II) 
+        function [C,Ceq] = centralizedRobustControllerSynthesis2Feasibility(obj,pVals)
+            
+            % Number of follower vehicles
+            N = obj.numOfVehicles-1; 
+            
+            % Load local controllers and resulting passivity indices
+            statusLVals = [];
+            LVals = [];
+            nuVals = [];
+            rhoVals = [];
+            gammaSqVals = [];
+            for i = 1:1:N
+                p_i = pVals(i);
+                [statusL_i,LVal,nuVal,rhoVal,gammaSqVal] = obj.vehicles(i+1).synthesizeLocalControllersParameterized(2,p_i);
+                
+                statusLVals = [statusLVals;statusL_i];
+                LVals = [LVals;LVal];
+                nuVals = [nuVals,nuVal];
+                rhoVals = [rhoVals,rhoVal];
+                gammaSqVals = [gammaSqVals,gammaSqVal];
+                
+            end
+            
+            if any(statusLVals==0)
+                statusG = 0;
+                statusK = norm(LVals) <= 10000*N;
+                C = [statusLVals-ones(N,1); statusG-1; statusK-1];
+                Ceq = [];
+                return;
+            end
+            % Else: continue to do the gobal design
+            
+            % Creating the adgacency matrix, null matrix and cost matrix
+            G = obj.topology.graph;
+            A = adjacency(G);
+            for i = 1:1:N
+                for j = 1:1:N
+                    % Structure of K_ij (which is a 3x3 matrix) should be embedded here
+                    if i~=j
+                        if A(j+1,i+1)==1
+                            adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
+                            nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
+                            costMatBlock{i,j} = 1*[0,0,0; 0,0,0; 1,1,1];
+                        else
+                            adjMatBlock{i,j} = [0,0,0; 0,0,0; 0,0,0];
+                            nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
+                            costMatBlock{i,j} = 10*[0,0,0; 0,0,0; 1,1,1];
+                        end
+                    else
+                        adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
+                        nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
+                        costMatBlock{i,j} = 0*[0,0,0; 0,0,0; 1,1,1];
+                    end
+                end 
+            end
+            adjMatBlock = cell2mat(adjMatBlock);
+            nullMatBlock = cell2mat(nullMatBlock);
+            costMatBlock = cell2mat(costMatBlock);
+            
+            % Set up the LMI problem
+            solverOptions = sdpsettings('solver','mosek','verbose',0);
+            I = eye(3*N);
+            I_n = eye(3);
+            O = zeros(3*N);
+
+            % Whether to use a soft or hard graph constraint
+            isSoft = 1;
+            normType = 2;
+
+            Q = sdpvar(3*N,3*N,'full'); 
+            P = sdpvar(N,N,'diagonal');
+            gammaSq = sdpvar(1,1,'full');
+
+            X_p_11 = [];
+            X_p_12 = [];
+            X_12 = [];
+            X_p_22 = [];
+            for i = 1:1:N
+%                 nu_i = obj.vehicles(i+1).nu;
+%                 rho_i = obj.vehicles(i+1).rho;
+                nu_i = nuVals(i);
+                rho_i = rhoVals(i);
+                X_p_11 = blkdiag(X_p_11,-nu_i*P(i,i)*I_n);
+                X_p_12 = blkdiag(X_p_12,0.5*P(i,i)*I_n);
+                X_12 = blkdiag(X_12,(-1/(2*nu_i))*I_n);
+                X_p_22 = blkdiag(X_p_22,-rho_i*P(i,i)*I_n);
+            end
+            X_p_21 = X_p_12';
+            X_21 = X_12';
+            
+            % Objective Function
+            % costFun0 = 1*norm(Q.*costMatBlock,normType);
+            costFun0 = sum(sum(Q.*costMatBlock));
+    
+            % Minimum Budget Constraints
+            con0 = costFun0 >= 1;
+                        
+            % Basic Constraints
+            con1 = P >= 0;
+
+            DMat = [X_p_11, O; O, I];
+            MMat = [Q, X_p_11; I, O];
+            ThetaMat = [-X_21*Q-Q'*X_12-X_p_22, -X_p_21; -X_p_12, gammaSq*I];
+            con2 = [DMat, MMat; MMat', ThetaMat] >= 0; % The real one
+            
+            % Structural constraints
+            con3 = Q.*(nullMatBlock==1)==O;  % Structural limitations (due to the format of the control law)
+            con4 = Q.*(adjMatBlock==0)==O;  % Graph structure : hard constraint
+            
+            
+            % Total Cost and Constraints
+            if isSoft
+                cons = [con0,con1,con2,con3]; % Without the hard graph constraint con7
+                costFun = 1*costFun0 + 1*gammaSq; % soft 
+            else
+                cons = [con0,con1,con2,con3,con4]; % With the hard graph constraint con7
+                costFun = 1*costFun0 + 1*gammaSq; % hard (same as soft)
+            end
+            
+            sol = optimize(cons,[costFun],solverOptions);
+            statusG = sol.problem == 0; %sol.info;
+            
+            costFun0Val = value(costFun0);
+            costFunVal = value(costFun);
+            PVal = value(P);
+            QVal = value(Q);
+            X_p_11Val = value(X_p_11);
+            X_p_21Val = value(X_p_21);
+
+            gammaSqVal = value(gammaSq);
+
+            M_neVal = X_p_11Val\QVal;
+            
+            % Obtaining K_ij blocks
+            M_neVal(nullMatBlock==1) = 0;
+            maxNorm = 0;
+            for i = 1:1:N
+                for j = 1:1:N
+                    K{i,j} = M_neVal(3*(i-1)+1:3*i , 3*(j-1)+1:3*j); % (i,j)-th (3 x 3) block
+                    normVal = max(max(abs(K{i,j})));
+                    if normVal>maxNorm 
+                        maxNorm = normVal;
+                    end
+                end
+            end
+            
+            % filtering out extremely small interconnections
+            for i=1:1:N
+                for j=1:1:N
+                    if i~=j
+                        if isSoft
+                            K{i,j}(abs(K{i,j})<0.0001*maxNorm) = 0;                       
+                        else
+                            if A(i+1,j+1)==0
+                                K{i,j} = zeros(3);
+                            end
+                        end
+                    end
+                    
+                    K_ijMax = max(abs(K{i,j}(:)));
+                    K{i,j}(abs(K{i,j})<0.01*K_ijMax) = 0;
+
+                end
+            end
+            % K
+
+            statusK = norm(LVals) <= 10000*N;
+            C = [statusLVals-ones(N,1); statusG-1; statusK-1];
+            Ceq = [];
+
+        end  
 
         % (Old) Centralized Robust Controller Synthesis (Error Dynamics II) 
 %         function status = centralizedRobustControllerSynthesis2Old(obj)
@@ -1241,7 +1592,7 @@ classdef Platoon < handle
 % 
 %         end
 
-
+        
 
         %% Functions for Loading Controller Gains and Topology under Different Error Dynamics Formulations
 
@@ -1369,7 +1720,72 @@ classdef Platoon < handle
         end
 
 
+        %% Codesign
+        function pVals = optimizeCodesignParameters(obj)
+            
+            N = obj.numOfVehicles-1;
+            
+            % f: Function of p_i parameters (each p_i used for local controller design), which will determine the resulting gamma value from the global design
+            % f is what we need to optimize with respect to the used p_i paramters
+            f = @(P)obj.centralizedRobustControllerSynthesis2Compact(P);
+            nonlcon = @(P)obj.centralizedRobustControllerSynthesis2Feasibility(P);
+            
+            % pARAMETERS
+            options = optimoptions('fmincon');
+ 
+            % Set OptimalityTolerance to 1e-3
+            options = optimoptions(options, 'OptimalityTolerance', 1e-3); 
+     
+            % Set the Display option to 'iter' and StepTolerance to 1e-4
+            options.Display = 'iter';
+            options.StepTolerance = 1e-4;
 
+            A = [];
+            b = [];
+            Aeq = [];
+            beq = [];
+            lb = zeros(N,1);
+            ub = inf*ones(N,1);
+            
+            p0 = 0.15*ones(N,1); % initial condition
+            [pVals,fval] = fmincon(f,p0,A,b,Aeq,beq,lb,ub,nonlcon,options)
+%             [pVals,fval] = fmincon(f,p0,A,b,Aeq,beq,lb,ub)
+            % p = 0.0449
+            
+            pVals = pVals';
+%             [statusL,nuVal,rhoVal,LVal] = synthesizeLocalControllersCompact(pVals)
+%             [statusG,gammaVal,KVal] = synthesizeGlobalRobustControllersCompact(platoonObj,nuVal,rhoVal)
+
+%             function gammaVal = synthesizeControllersCompact(platoonObj,pVal)
+%     
+%                 [statusL,nuVal,rhoVal,LVal] = synthesizeLocalControllersCompact(pVal);
+%                 if statusL == 0
+%                      gammaVal = 1000000;
+%                      return
+%                 else
+%                     [statusG,gammaVal,KVal] = synthesizeGlobalRobustControllersCompact(platoonObj,nuVal,rhoVal);
+%                     if statusG == 0 
+%                         gammaVal = 1000000;
+%                         return
+%                     end
+%                 end
+%             end
+%             
+%             function [C,Ceq] = synthesizeControllersCompactFeasibility(platoonObj,pVal)
+%             
+%                 [statusL,nuVal,rhoVal,LVal] = synthesizeLocalControllersCompact(pVal);
+%                 if statusL == 0
+%                     statusG = 0;
+%                 else
+%                     [statusG,gammaVal,KVal] = synthesizeGlobalRobustControllersCompact(platoonObj,nuVal,rhoVal);
+%                 end
+%                 statusK = norm(LVal) <= 10000;
+%                 
+%                 C = [statusL-1; statusG-1; statusK-1];
+%                 Ceq = [];
+%             
+%             end
+        end
         
     end
 end

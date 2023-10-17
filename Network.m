@@ -190,7 +190,7 @@ classdef Network < handle
 
 
 
-        function output = loadPlatoonControllers(obj,errorDynamicsType,isCentralized,isOnlyStabilizing,gammaSqBar,nuBar,rhoBar)
+        function output = loadPlatoonControllers(obj,errorDynamicsType,isCentralized,isOnlyStabilizing,gammaSqBar,nuBar,rhoBar,pVals)
             for k = 1:1:obj.numOfPlatoons
 
                 %% Controller Types:
@@ -217,7 +217,7 @@ classdef Network < handle
                         if isOnlyStabilizing == 1   % Only Stabilizing
                             status = obj.platoons(k).centralizedStabilizingControllerSynthesis2(nuBar,rhoBar);
                         else                        % Robust
-                            status = obj.platoons(k).centralizedRobustControllerSynthesis2(nuBar,rhoBar,gammaSqBar);
+                            status = obj.platoons(k).centralizedRobustControllerSynthesis2(pVals(k,:));
                         end
                     else                            % Decentralized
                         if isOnlyStabilizing == 1   % Only Stabilizing
@@ -238,7 +238,13 @@ classdef Network < handle
             end
         end
         
-
+        function pVals = optimizeCodesignParameters(obj)
+            pVals = [];
+            for k = 1:1:obj.numOfPlatoons
+                pVals_k = obj.platoons(k).optimizeCodesignParameters();
+                pVals = [pVals; pVals_k];
+            end
+        end
 
         %% From Past Projects:
 
