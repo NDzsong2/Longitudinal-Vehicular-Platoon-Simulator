@@ -91,7 +91,11 @@ classdef Vehicle < handle
         % This function is used to draw a "car" shape object
         function outArg = drawVehicle(obj,figNum)
             figure(figNum); hold on;
-      
+            
+            if ~isempty(obj.graphics)
+                delete(obj.graphics);
+            end
+
             length = obj.vehicleParameters(2);
             height1 = obj.vehicleParameters(2)/8;
             height2 = obj.vehicleParameters(2)/8;
@@ -321,20 +325,24 @@ classdef Vehicle < handle
 
             rhoBarBar = 1/rhoBar;
 
+            nuHat = -0.01;            % nuBar <= nu <= nuHat < 0
+            rhoHat = 0.01;            % 0 <= rhoHat <= rho <= rhoBar ( or 0 <= rhoBarBar <= rhoBar <= rhoHatBar ) 
+            rhoHatBar = 1/rhoHat;
+
             % Set up the LMI problem
             solverOptions = sdpsettings('solver','mosek','verbose',0);            
             P = sdpvar(3,3,'symmetric'); 
             K = sdpvar(1,3,'full'); 
 
-            rhoBar = sdpvar(1,1,'full'); %Representing: 1/rho
+            rhoTilde = sdpvar(1,1,'full'); %Representing: 1/rho
             nu = sdpvar(1,1,'full');
 
             % Basic Constraints
             con1 = P >= 0;
-            con2 = trace(P) == 1; % In this setting this is not required actually
+            %%con2 = trace(P) == 1; % In this setting this is not required actually
            
             % Approach 4 with rho = prespecified, nu < 0 and nu is free to maximize
-            DMat = [rhoBar*I];
+            DMat = [rhoTilde*I];
             MMat = [P, O];
             ThetaMat = [-A*P-P*A'-B*K-K'*B', -I+0.5*P; -I+0.5*P, -nu*I];
             W = [DMat, MMat; MMat', ThetaMat];
@@ -342,12 +350,22 @@ classdef Vehicle < handle
             
             % Some modesty constraints on resulting nu and rho from the local design
             con4 = nu >= nuBar;             % -8.1
-            con5 = rhoBar >= rhoBarBar;     % 1/4.1
+            con5 = rhoTilde >= rhoBarBar;     % 1/4.1
+
+            con6 = nu <= nuHat;
+            con7 = rhoTilde <= rhoHatBar;
+
+            % To help the global design (\gammaSqBar=10, p_i = 1/N)
+            gammaSqBar = 10;
+            con8 = nu >= -gammaSqBar/(1/5) ;     % nu >= -50
+            con9 = rhoTilde <= 4*gammaSqBar/(1/5);  % rhoBar >= 200
 
             % Total Cost and Constraints
-            cons = [con1,con2,con3,con4,con5];
-            costFun = - nu + rhoBar;
-            
+            cons = [con1,con3,con4,con5,con6,con7,con8,con9];
+            %costFun =  0*(-nu + rhoBar);           % For stabilizing, set coefficient to 0
+            %costFun = 0.0000001*(-nu + rhoBar);    % Otherwise set to 0.0000001.
+            costFun = 0.0000001*(- nu + rhoTilde);
+
             % Solution
             sol = optimize(cons,costFun,solverOptions);
             status = sol.problem == 0; % sol.info;
@@ -357,7 +375,10 @@ classdef Vehicle < handle
             LVal = KVal/PVal
             
             nuVal = value(nu)
-            rhoVal = 1/value(rhoBar)
+            rhoVal = 1/value(rhoTilde)
+
+            disp('TestVal = -nu,rhoTilde/4')
+            val = [-value(nu),  value(rhoTilde)/4]
             
             % Updating the information
             obj.nu = nuVal;
@@ -368,6 +389,89 @@ classdef Vehicle < handle
 
             if status == 1
                 disp(['Synthesis Success at Vehicle ',num2str(obj.vehicleIndex),'.'])
+            else
+                disp(['Synthesis Failed at Vehicle ',num2str(obj.vehicleIndex),'.'])
+            end
+            
+        end
+
+        %% Parametrized Approach to Synthesize Local Controllers (while also assisting synthesis of global controllers)
+        function [status,KVal,nuVal,rhoVal,gammaSqVal] = synthesizeLocalControllersParameterized(obj,errorDynamicsType,pVal)
+            % Here we will synthesize the local controllers for local error
+            % dynamics to optimize the passivity properties
+        
+            if errorDynamicsType == 1
+                A = [0,1,0;0,0,0;0,0,0]; % For error dynamics type 1
+            else
+                A = [0,1,0;0,0,1;0,0,0]; % For error dynamics type 2   
+            end
+            B = [0;0;1];
+            I = eye(3);
+            O = zeros(3);
+        
+            % Set up the LMI problem
+            solverOptions = sdpsettings('solver','mosek','verbose',0);            
+            P = sdpvar(3,3,'symmetric'); 
+            K = sdpvar(1,3,'full'); 
+        
+            nu = sdpvar(1,1,'full');
+            rhoTilde = sdpvar(1,1,'full'); %Representing: 1/rho
+            
+            gammaSq = sdpvar(1,1,'full');
+        
+            % For: nuBar < nu < nuHat < 0
+            nuBar = -gammaSq/pVal;
+        
+            % For: 0 < rhoHat1,rhoHat2 < rho < rhoBar
+            % For: 0 < rhoTildeHat < rhoTilde < rhoTildeBar1,rhoTildeBar2
+            rhoTildeBar1 = 4*gammaSq/pVal;
+            rhoTildeBar2 = pVal;
+        
+            % Basic Constraints
+            con1 = P >= 0;
+            
+            % Approach 4 with rho = prespecified, nu < 0 and nu is free to maximize
+            DMat = [rhoTilde*I];
+            MMat = [P, O];
+            ThetaMat = [-A*P-P*A'-B*K-K'*B', -I+0.5*P; -I+0.5*P, -nu*I];
+            W = [DMat, MMat; MMat', ThetaMat];
+            con2 = W >= 0;
+            
+            %%Constraints on resulting nu and rho from the local design 
+            % nuBar < nu < nuHat < 0 
+            con3 = nu >= nuBar;              % Helps global design
+            
+            % 0 < rhoTildeHat < rhoTilde < rhoTildeBar1,rhoTildeBar2  
+            con4 = rhoTilde <= rhoTildeBar1;    % Helps global design
+            con5 = rhoTilde <= rhoTildeBar2;    % Helps global design
+            
+            % Total Cost and Constraints
+            cons = [con1,con2,con3,con4,con5];
+            %costFun =  0*(-nu + rhoBar);           % For stabilizing, set coefficient to 0
+            %costFun = 0.0000001*(-nu + rhoBar);    % Otherwise set to 0.0000001.
+            costFun = 0*gammaSq;
+        
+            % Solution
+            sol = optimize(cons,costFun,solverOptions);
+            status = sol.problem == 0; % sol.info;
+        
+            PVal = value(P);
+            KVal = value(K);
+            LVal = KVal/PVal;
+            
+            nuVal = value(nu);
+            rhoVal = 1/value(rhoTilde);
+            gammaSqVal = value(gammaSq);
+        
+            % Updating the information
+            obj.nu = nuVal;
+            obj.rho = rhoVal;
+
+            obj.localControllerGains1 = LVal; % Here we need \bar{k}_{i0}^{Local} = 1
+            obj.localControllerGains2 = LVal; 
+
+            if status == 1
+                disp(['Synthesis Success at Vehicle ',num2str(obj.vehicleIndex),' with gammaSq=',num2str(value(gammaSqVal)),'.'])
             else
                 disp(['Synthesis Failed at Vehicle ',num2str(obj.vehicleIndex),'.'])
             end
