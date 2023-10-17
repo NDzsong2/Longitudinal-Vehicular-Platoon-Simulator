@@ -899,7 +899,7 @@ classdef Platoon < handle
                         else
                             adjMatBlock{i,j} = [0,0,0; 0,0,0; 0,0,0];
                             nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
-                            costMatBlock{i,j} = 10*[0,0,0; 0,0,0; 1,1,1];
+                            costMatBlock{i,j} = 3*abs(i-j)*[0,0,0; 0,0,0; 1,1,1];
                         end
                     else
                         adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
@@ -947,7 +947,7 @@ classdef Platoon < handle
             costFun0 = sum(sum(Q.*costMatBlock));
     
             % Minimum Budget Constraints
-            con0 = costFun0 >= 1;
+            con0 = costFun0 >= 0;
                         
             % Basic Constraints
             con1 = P >= 0;
@@ -1099,7 +1099,7 @@ classdef Platoon < handle
                         else
                             adjMatBlock{i,j} = [0,0,0; 0,0,0; 0,0,0];
                             nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
-                            costMatBlock{i,j} = 10*[0,0,0; 0,0,0; 1,1,1];
+                            costMatBlock{i,j} = 3*abs(i-j)*[0,0,0; 0,0,0; 1,1,1];
                         end
                     else
                         adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
@@ -1148,7 +1148,7 @@ classdef Platoon < handle
             costFun0 = sum(sum(Q.*costMatBlock));
     
             % Minimum Budget Constraints
-            con0 = costFun0 >= 1;
+            con0 = costFun0 >= 0;
                         
             % Basic Constraints
             con1 = P >= 0;
@@ -1175,52 +1175,53 @@ classdef Platoon < handle
             sol = optimize(cons,[costFun],solverOptions);
             status = sol.problem == 0; %sol.info;
             
-            costFun0Val = value(costFun0);
-            costFunVal = value(costFun);
-            PVal = value(P);
-            QVal = value(Q);
-            X_p_11Val = value(X_p_11);
-            X_p_21Val = value(X_p_21);
-
+%             costFun0Val = value(costFun0);
+%             costFunVal = value(costFun);
+%             PVal = value(P);
+%             QVal = value(Q);
+%             X_p_11Val = value(X_p_11);
+%             X_p_21Val = value(X_p_21);
+% 
             gammaSqVal = value(gammaSq);
-
-            M_neVal = X_p_11Val\QVal;
-            
-            % Obtaining K_ij blocks
-            M_neVal(nullMatBlock==1) = 0;
-            maxNorm = 0;
-            for i = 1:1:N
-                for j = 1:1:N
-                    K{i,j} = M_neVal(3*(i-1)+1:3*i , 3*(j-1)+1:3*j); % (i,j)-th (3 x 3) block
-                    normVal = max(max(abs(K{i,j})));
-                    if normVal>maxNorm 
-                        maxNorm = normVal;
-                    end
-                end
-            end
-            
-            % filtering out extremely small interconnections
-            for i=1:1:N
-                for j=1:1:N
-                    if i~=j
-                        if isSoft
-                            K{i,j}(abs(K{i,j})<0.0001*maxNorm) = 0;                       
-                        else
-                            if A(i+1,j+1)==0
-                                K{i,j} = zeros(3);
-                            end
-                        end
-                    end
-                    
-                    K_ijMax = max(abs(K{i,j}(:)));
-                    K{i,j}(abs(K{i,j})<0.01*K_ijMax) = 0;
-
-                end
-            end
+% 
+%             M_neVal = X_p_11Val\QVal;
+%             
+%             % Obtaining K_ij blocks
+%             M_neVal(nullMatBlock==1) = 0;
+%             maxNorm = 0;
+%             for i = 1:1:N
+%                 for j = 1:1:N
+%                     K{i,j} = M_neVal(3*(i-1)+1:3*i , 3*(j-1)+1:3*j); % (i,j)-th (3 x 3) block
+%                     normVal = max(max(abs(K{i,j})));
+%                     if normVal>maxNorm 
+%                         maxNorm = normVal;
+%                     end
+%                 end
+%             end
+%             
+%             % filtering out extremely small interconnections
+%             for i=1:1:N
+%                 for j=1:1:N
+%                     if i~=j
+%                         if isSoft
+%                             K{i,j}(abs(K{i,j})<0.0001*maxNorm) = 0;                       
+%                         else
+%                             if A(i+1,j+1)==0
+%                                 K{i,j} = zeros(3);
+%                             end
+%                         end
+%                     end
+%                     
+%                     K_ijMax = max(abs(K{i,j}(:)));
+%                     K{i,j}(abs(K{i,j})<0.01*K_ijMax) = 0;
+% 
+%                 end
+%             end
       
 %             K
 %             obj.loadTopologyFromK2(K);
 %             obj.loadControllerGains2(K);
+
             if status == 1
                 disp(['Global Synthesis Success with gammaSq=',num2str(value(gammaSqVal))])
             else
@@ -1259,7 +1260,7 @@ classdef Platoon < handle
             
             if any(statusLVals==0)
                 statusG = 0;
-                statusK = norm(LVals) <= 10000*N;
+                statusK = norm(LVals) <= 200*N;
                 C = [statusLVals-ones(N,1); statusG-1; statusK-1];
                 Ceq = [];
                 return;
@@ -1280,7 +1281,7 @@ classdef Platoon < handle
                         else
                             adjMatBlock{i,j} = [0,0,0; 0,0,0; 0,0,0];
                             nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
-                            costMatBlock{i,j} = 10*[0,0,0; 0,0,0; 1,1,1];
+                            costMatBlock{i,j} = 3*abs(i-j)*[0,0,0; 0,0,0; 1,1,1];
                         end
                     else
                         adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
@@ -1329,7 +1330,7 @@ classdef Platoon < handle
             costFun0 = sum(sum(Q.*costMatBlock));
     
             % Minimum Budget Constraints
-            con0 = costFun0 >= 1;
+            con0 = costFun0 >= 0;
                         
             % Basic Constraints
             con1 = P >= 0;
@@ -1356,51 +1357,51 @@ classdef Platoon < handle
             sol = optimize(cons,[costFun],solverOptions);
             statusG = sol.problem == 0; %sol.info;
             
-            costFun0Val = value(costFun0);
-            costFunVal = value(costFun);
-            PVal = value(P);
-            QVal = value(Q);
-            X_p_11Val = value(X_p_11);
-            X_p_21Val = value(X_p_21);
-
-            gammaSqVal = value(gammaSq);
-
-            M_neVal = X_p_11Val\QVal;
-            
-            % Obtaining K_ij blocks
-            M_neVal(nullMatBlock==1) = 0;
-            maxNorm = 0;
-            for i = 1:1:N
-                for j = 1:1:N
-                    K{i,j} = M_neVal(3*(i-1)+1:3*i , 3*(j-1)+1:3*j); % (i,j)-th (3 x 3) block
-                    normVal = max(max(abs(K{i,j})));
-                    if normVal>maxNorm 
-                        maxNorm = normVal;
-                    end
-                end
-            end
-            
-            % filtering out extremely small interconnections
-            for i=1:1:N
-                for j=1:1:N
-                    if i~=j
-                        if isSoft
-                            K{i,j}(abs(K{i,j})<0.0001*maxNorm) = 0;                       
-                        else
-                            if A(i+1,j+1)==0
-                                K{i,j} = zeros(3);
-                            end
-                        end
-                    end
-                    
-                    K_ijMax = max(abs(K{i,j}(:)));
-                    K{i,j}(abs(K{i,j})<0.01*K_ijMax) = 0;
-
-                end
-            end
+%             costFun0Val = value(costFun0);
+%             costFunVal = value(costFun);
+%             PVal = value(P);
+%             QVal = value(Q);
+%             X_p_11Val = value(X_p_11);
+%             X_p_21Val = value(X_p_21);
+% 
+%             gammaSqVal = value(gammaSq);
+% 
+%             M_neVal = X_p_11Val\QVal;
+%             
+%             % Obtaining K_ij blocks
+%             M_neVal(nullMatBlock==1) = 0;
+%             maxNorm = 0;
+%             for i = 1:1:N
+%                 for j = 1:1:N
+%                     K{i,j} = M_neVal(3*(i-1)+1:3*i , 3*(j-1)+1:3*j); % (i,j)-th (3 x 3) block
+%                     normVal = max(max(abs(K{i,j})));
+%                     if normVal>maxNorm 
+%                         maxNorm = normVal;
+%                     end
+%                 end
+%             end
+%             
+%             % filtering out extremely small interconnections
+%             for i=1:1:N
+%                 for j=1:1:N
+%                     if i~=j
+%                         if isSoft
+%                             K{i,j}(abs(K{i,j})<0.0001*maxNorm) = 0;                       
+%                         else
+%                             if A(i+1,j+1)==0
+%                                 K{i,j} = zeros(3);
+%                             end
+%                         end
+%                     end
+%                     
+%                     K_ijMax = max(abs(K{i,j}(:)));
+%                     K{i,j}(abs(K{i,j})<0.01*K_ijMax) = 0;
+% 
+%                 end
+%             end
             % K
 
-            statusK = norm(LVals) <= 10000*N;
+            statusK = norm(LVals) <= 1000*N;
             C = [statusLVals-ones(N,1); statusG-1; statusK-1];
             Ceq = [];
 
@@ -1747,7 +1748,7 @@ classdef Platoon < handle
             lb = zeros(N,1);
             ub = inf*ones(N,1);
             
-            p0 = 0.15*ones(N,1); % initial condition
+            p0 = (1/N)*ones(N,1); % initial condition
             [pVals,fval] = fmincon(f,p0,A,b,Aeq,beq,lb,ub,nonlcon,options)
 %             [pVals,fval] = fmincon(f,p0,A,b,Aeq,beq,lb,ub)
             % p = 0.0449

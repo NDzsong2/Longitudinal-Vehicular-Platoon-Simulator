@@ -899,7 +899,7 @@ classdef Platoon < handle
                         else
                             adjMatBlock{i,j} = [0,0,0; 0,0,0; 0,0,0];
                             nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
-                            costMatBlock{i,j} = 10*[0,0,0; 0,0,0; 1,1,1];
+                            costMatBlock{i,j} = (20/N)*abs(i-j)*[0,0,0; 0,0,0; 1,1,1];
                         end
                     else
                         adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
@@ -947,7 +947,7 @@ classdef Platoon < handle
             costFun0 = sum(sum(Q.*costMatBlock));
     
             % Minimum Budget Constraints
-            con0 = costFun0 >= 1;
+            con0 = costFun0 >= 0;
                         
             % Basic Constraints
             con1 = P >= 0;
@@ -1099,7 +1099,7 @@ classdef Platoon < handle
                         else
                             adjMatBlock{i,j} = [0,0,0; 0,0,0; 0,0,0];
                             nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
-                            costMatBlock{i,j} = 10*[0,0,0; 0,0,0; 1,1,1];
+                            costMatBlock{i,j} = (20/N)*abs(i-j)*[0,0,0; 0,0,0; 1,1,1];
                         end
                     else
                         adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
@@ -1148,7 +1148,7 @@ classdef Platoon < handle
             costFun0 = sum(sum(Q.*costMatBlock));
     
             % Minimum Budget Constraints
-            con0 = costFun0 >= 1;
+            con0 = costFun0 >= 0;
                         
             % Basic Constraints
             con1 = P >= 0;
@@ -1260,7 +1260,7 @@ classdef Platoon < handle
             
             if any(statusLVals==0)
                 statusG = 0;
-                statusK = norm(LVals) <= 10000*N;
+                statusK = norm(LVals) <= 1000*sqrt(N);
                 C = [statusLVals-ones(N,1); statusG-1; statusK-1];
                 Ceq = [];
                 return;
@@ -1281,7 +1281,7 @@ classdef Platoon < handle
                         else
                             adjMatBlock{i,j} = [0,0,0; 0,0,0; 0,0,0];
                             nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
-                            costMatBlock{i,j} = 10*[0,0,0; 0,0,0; 1,1,1];
+                            costMatBlock{i,j} = (20/N)*abs(i-j)*[0,0,0; 0,0,0; 1,1,1];
                         end
                     else
                         adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
@@ -1330,7 +1330,7 @@ classdef Platoon < handle
             costFun0 = sum(sum(Q.*costMatBlock));
     
             % Minimum Budget Constraints
-            con0 = costFun0 >= 1;
+            con0 = costFun0 >= 0;
                         
             % Basic Constraints
             con1 = P >= 0;
@@ -1401,7 +1401,7 @@ classdef Platoon < handle
 %             end
             % K
 
-            statusK = norm(LVals) <= 10000*N;
+            statusK = norm(LVals) <= 1000*sqrt(N);
             C = [statusLVals-ones(N,1); statusG-1; statusK-1];
             Ceq = [];
 
@@ -1748,7 +1748,7 @@ classdef Platoon < handle
             lb = zeros(N,1);
             ub = inf*ones(N,1);
             
-            p0 = 0.15*ones(N,1); % initial condition
+            p0 = (1/N)*ones(N,1); % initial condition
             [pVals,fval] = fmincon(f,p0,A,b,Aeq,beq,lb,ub,nonlcon,options)
 %             [pVals,fval] = fmincon(f,p0,A,b,Aeq,beq,lb,ub)
             % p = 0.0449
