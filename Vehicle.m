@@ -89,7 +89,7 @@ classdef Vehicle < handle
 
 
         % This function is used to draw a "car" shape object
-        function outArg = drawVehicle(obj,figNum)
+        function outputArg = drawVehicle(obj,figNum)
             figure(figNum); hold on;
             
             if ~isempty(obj.graphics)
@@ -986,7 +986,7 @@ classdef Vehicle < handle
             iInd = obj.vehicleIndex-1;
             disp(['Stabilizing at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
             
-            status = obj.synthesizeLocalControllers(1,nuBar,rhoBar);
+            status = obj.synthesizeLocalControllers(2,nuBar,rhoBar);
                         
             % Seting up the LMI problem
             solverOptions = sdpsettings('solver','mosek','verbose',0);
@@ -1217,17 +1217,32 @@ classdef Vehicle < handle
 
 
         %% Decentralized Robust Controller Synthesis (Error Dynamics II)
-        function [isRobustStabilizable,K_ii,K_ijVals,K_jiVals] = robustControllerSynthesis2(obj, previousSubsystems, subsystems, nuBar, rhoBar, gammaSqBar)
+        function [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL,LVal] = robustControllerSynthesis2(obj, previousSubsystems, subsystems, pVal, displayMasseges, isSoft)
 
-            i = length(previousSubsystems)+1;
+            % i = length(previousSubsystems)+1;
             iInd = obj.vehicleIndex-1;
-            disp(['Stabilizing at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
+            N = 5;
+            costCoefficient1 = 1;
+            costCoefficient2 = 1000000; 
+
+            [statusL,LVal,nuVal,rhoVal,gammaSqVal] = obj.synthesizeLocalControllersParameterized(2,pVal);
+            if displayMasseges
+                disp(['Robust Stabilizing at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
+                if statusL == 1
+                    disp(['Local Synthesis Success at: ',num2str(iInd),' with gammaSq=',num2str(value(gammaSqVal)),'.'])
+                else
+                    disp(['Local Synthesis Failed at: ',num2str(iInd),'.'])
+                end
+            end
             
-            status = obj.synthesizeLocalControllers(1,nuBar,rhoBar);
-                        
+            if statusL == 0
+                isRobustStabilizable = 0;
+                return
+            end 
+
             % Seting up the LMI problem
             solverOptions = sdpsettings('solver','mosek','verbose',0);
-            isSoft = 1; % Whether to use a soft or hard graph constraint
+%             solverOptions = sdpsettings('solver','mosek','verbose',2,'warning',1);
             normType = 2; % Type of the norm to be used in the LMI
 
             I_n = eye(3);
@@ -1237,7 +1252,7 @@ classdef Vehicle < handle
             rho_i = obj.rho;
             X_i_11 = -nu_i*I_n;
             X_i_12 = 0.5*I_n;
-            % X_i_21 = X_i_12';
+            X_i_21 = X_i_12';
             X_i_22 = -rho_i*I_n;
             X_ii_12 = X_i_11\X_i_12;
             X_ii_21 = X_ii_12';
@@ -1246,7 +1261,7 @@ classdef Vehicle < handle
 
             null_ii = [1,1,1; 1,1,1; 0,0,0];
             % adj_ii = [0,0,0; 0,0,0; 1,1,1];
-            cost_ii = 1*[0,0,0; 0,0,0; 1,1,1];
+            cost_ii = 0*[0,0,0; 0,0,0; 1,1,1];
 
             if isempty(previousSubsystems)
                 
@@ -1255,9 +1270,10 @@ classdef Vehicle < handle
                 Q_ii = sdpvar(3,3,'full');
                 gammaSq_i = sdpvar(1,1);
                 
+                costFun0 = sum(sum(Q_ii.*cost_ii));
+
+                con0 = costFun0 >= 0.0001;
                 con1 = p_i >= 0;
-                con2 = gammaSq_i >= 0;
-                con3 = gammaSq_i <= gammaSqBar;
 
 %                 DMat = [X_p_11, O; O, I];
 %                 MMat = [Q, X_p_11; I, O];
@@ -1267,27 +1283,37 @@ classdef Vehicle < handle
                 DMat_ii = [p_i*X_i_11, O_n; O_n, I_n];
                 MMat_ii = [Q_ii, p_i*X_i_11; I_n, O_n]; 
                 TMat_ii = [-X_ii_21*Q_ii-Q_ii'*X_ii_12-p_i*X_i_22, -p_i*X_i_21; -p_i*X_i_12, gammaSq_i*I_n];
+                
                 W_ii = [DMat_ii, MMat_ii; MMat_ii', TMat_ii];
 
-                con4 = W_ii >= 0;
+                con2 = W_ii >= 0;%10^(-6)*eye(size(W_ii));
 
-                con5 = Q_ii.*(null_ii==1)==O_n;
+                con3 = Q_ii.*(null_ii==1)==O_n;
 
-                costFun = 1*norm(Q_ii.*cost_ii,normType) + 1*gammaSq;
+                costFun =  costCoefficient1*costFun0 + costCoefficient2*gammaSq_i;
 
-                sol = optimize([con1,con2,con3,con4,con5],costFun,solverOptions);
+                sol = optimize([con1,con2,con3],costFun,solverOptions);
                 isRobustStabilizable = sol.problem==0;
 
                 p_iVal = value(p_i);
                 Q_iiVal = value(Q_ii);
                 gammaSq_iVal = value(gammaSq_i);
+                costFun0Val = value(costFun0);
+
+                con2Val = value(W_ii);
+                eigVals = eig(con2Val);
+%                 minEigVal = min(eigVals);
+% %                 con0Val = value(con0)
+%                 con1Val = value(con1)
+%                 con2Val = value(con2)
+%                 con3Vals = [];
+%                 for k = 1:1:length(con3)
+%                     con3Vals = [con3Vals, value(con3(k))];
+%                 end
+%                 con3Val = any(con3Vals(:) == 0)
+                
                 W_iiVal = value(W_ii);
                 tildeW_i = W_iiVal; % Note that, here, \tilde{W}_ii = W_ii = \tilde{W}_i. This also needs to be stored
-
-                if abs(det(tildeW_i))<0.000000001
-                    disp("Error: det(tildeW_ii) low");
-                    isRobustStabilizable = 0;
-                end
                 
                 K_ii = (p_iVal*X_i_11)\Q_iiVal;
                 obj.controllerGainsCollection.decenRobustCont1{iInd} = K_ii;
@@ -1299,10 +1325,20 @@ classdef Vehicle < handle
                 obj.dataToBeDistributed.gammaSq = gammaSq_iVal;
                 obj.dataToBeDistributed.tildeW = tildeW_i;  % Storing
                 
-                disp(['Data saved ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
-                if ~isRobustStabilizable
-                    disp(['Not stabilizable at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
+                if displayMasseges
+                    disp(['Data saved at: ',num2str(iInd),'.']);
+                    if ~isRobustStabilizable
+                        disp(['LMI is not feasible at: ',num2str(iInd),', thus terminating here.']);
+                    else
+                        disp(['LMI is feasible at: ',num2str(iInd),', thus continued.'])
+                    end
                 end
+
+                if ~isRobustStabilizable && (min(eigVals)<-0.000001 || p_iVal < 0)
+                    return
+                else
+                    isRobustStabilizable = 1;
+                end 
 
             else
                 % This subsystem has to talk with all the previosSubsystems
@@ -1311,52 +1347,33 @@ classdef Vehicle < handle
                 % inv((scriptD_i*scriptA_i^T)^{-1}*(scriptD_i)*(scriptD_i*scriptA_i^T)^{-1}') = scriptA_i*scriptD_i*scriptA_i'
 
                 % M_i term
-                blockSize = 3; 
-                scriptA_i = [];
-                scriptD_i = [];
+                blockSize = 12; 
                 for j = 1:1:length(previousSubsystems)
                     jInd = previousSubsystems(j);
 
                     % Getting stored info from jInd to create \mathcal{A}_i and \mathcal{D}_i matrices (their j-th columns)
-                    tildeW_j = subsystems(jInd).dataToBeDistributed.tildeW;
+                    tildeW_j = subsystems(jInd+1).dataToBeDistributed.tildeW;
 
-                    Z = zeros(blockSize, blockSize*(i-1-j)); % (i-1)-j blocks of blockSize X blockSize zero matrices
-                    z = zeros(blockSize, blockSize*(j-1));
-                    if j==1
-                        tildeW_jj = tildeW_j;                    
-                        scriptA_i = [tildeW_jj, Z];         % The first row of \mathcal{A}_i.
-                        scriptD_i = [inv(tildeW_jj), Z];    % The first row of \mathcal{D}_i.
+                    if j == 1
+                        tildeW_jj = tildeW_j;
+                        M_i = tildeW_jj;
                     else
                         tildeW_jj = tildeW_j(:,blockSize*(j-1)+1:blockSize*j);   % last blockSizeXblockSize block in the row block vector
                         tildeW_j  = tildeW_j(:,1:blockSize*(j-1));                % first (j-1) blocks in the row block vector
-                        scriptA_i = [scriptA_i; [tildeW_j, tildeW_jj, Z]];    % The j-th row of \mathcal{A}_i.
-                        scriptD_i = [scriptD_i; [z, inv(tildeW_jj), Z]];         % The j-th row of \mathcal{D}_i.
+                        M_i = [M_i, tildeW_j'; tildeW_j, tildeW_jj];
                     end                    
                 end
-                disp(['Data at ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
-                scriptA_i
-                scriptD_i                
-
-                M1_i = inv(scriptD_i*scriptA_i');
-                % M_i = inv(M1_i*scriptD_i*M1_i') % THis fills (i-1)x(i-1) blocks in the LMI
-                M_i = scriptA_i*scriptD_i*scriptA_i';
-
-                if issymmetric(scriptD_i) & issymmetric(scriptA_i) & ~issymmetric(M_i)
-                    tf = norm(M_i-M_i.',inf);
-                    disp(['Symmetry Error !!! Magnitude:',num2str(tf)]);
-                    % M_i
-                    M_i = 0.5*(M_i + M_i');
-                end
                 
-                % W_ii and W_i terms
+                % LMI variables
                 p_i = sdpvar(1,1);
                 Q_ii = sdpvar(3,3,'full');
                 gammaSq_i = sdpvar(1,1);
 
-                con1 = p_i >= 0;
-                con2 = gammaSq_i >= 0;
-                con3 = gammaSq_i <= gammaSqBar;
-              
+                % W_ii and W_i terms
+%                 DMat = [X_p_11, O; O, I];
+%                 MMat = [Q, X_p_11; I, O];
+%                 ThetaMat = [-X_21*Q-Q'*X_12-X_p_22, -X_p_21; -X_p_12, gammaSq*I];
+%                 con4 = [DMat, MMat; MMat', ThetaMat] >= 0; % The real one  
                 DMat_ii = [p_i*X_i_11, O_n; O_n, I_n];
                 MMat_ii = [Q_ii, p_i*X_i_11; I_n, O_n]; 
                 TMat_ii = [-X_ii_21*Q_ii-Q_ii'*X_ii_12-p_i*X_i_22, -p_i*X_i_21; -p_i*X_i_12, gammaSq_i*I_n];
@@ -1364,6 +1381,7 @@ classdef Vehicle < handle
 
                 W_i = [];
                 for j = 1:1:length(previousSubsystems)
+
                     jInd = previousSubsystems(j);
 
                     null_ij{j} = [1,1,1; 1,1,1; 0,0,0];
@@ -1371,25 +1389,29 @@ classdef Vehicle < handle
 
                     if any(obj.inNeighbors==jInd) % iInd <----- jInd
                         adj_ij{j} = [0,0,0; 0,0,0; 1,1,1]; 
-                        cost_ij{j} = 0.01*[0,0,0; 0,0,0; 1,1,1];
+                        cost_ij{j} = 1*[0,0,0; 0,0,0; 1,1,1];
                     else
                         adj_ij{j} = [0,0,0; 0,0,0; 0,0,0];
-                        cost_ij{j} = 1*[0,0,0; 0,0,0; 1,1,1];
+                        cost_ij{j} = (20/N)*abs(iInd-jInd)*[0,0,0; 0,0,0; 1,1,1];
                     end
 
                     if any(obj.outNeighbors==jInd) % iInd -----> jInd
                         adj_ji{j} = [0,0,0; 0,0,0; 1,1,1];
-                        cost_ji{j} = 0.01*[0,0,0; 0,0,0; 1,1,1];
+                        cost_ji{j} = 1*[0,0,0; 0,0,0; 1,1,1];
                     else
                         adj_ji{j} = [0,0,0; 0,0,0; 0,0,0];
-                        cost_ji{j} = 1*[0,0,0; 0,0,0; 1,1,1];
+                        cost_ji{j} = (20/N)*abs(iInd-jInd)*[0,0,0; 0,0,0; 1,1,1];
                     end
 
                     Q_ij{j} = sdpvar(3,3,'full');
                     Q_ji{j} = sdpvar(3,3,'full');
 
-                    X_jj_12 = subsystems(jInd).dataToBeDistributed.X;
+                    X_jj_12 = subsystems(jInd+1).dataToBeDistributed.X;
                     
+%                 DMat = [X_p_11, O; O, I];
+%                 MMat = [Q, X_p_11; I, O];
+%                 ThetaMat = [-X_21*Q-Q'*X_12-X_p_22, -X_p_21; -X_p_12, gammaSq*I];
+%                 con4 = [DMat, MMat; MMat', ThetaMat] >= 0; % The real one  
                     DMat_ij = [O_n, O_n; O_n, O_n];
                     MMat_ij = [Q_ij{j}, O_n; O_n, O_n];
                     MMat_ji = [Q_ji{j}, O_n; O_n, O_n];
@@ -1397,35 +1419,42 @@ classdef Vehicle < handle
                     TMat_ij = [-X_ii_21*Q_ij{j}-Q_ji{j}'*X_jj_12, O_n; O_n, O_n];
                     W_ij = [DMat_ij, MMat_ij; MMat_ji', TMat_ij];
                     W_i = [W_i, W_ij];
+
                 end
 
-                con4 = [M_i, W_i';W_i, W_ii] >= 0;
+                con1 = p_i >= 0;
+
+                % con2Mat = [M_i, W_i';W_i, W_ii];
+                con2 = [M_i, W_i';W_i, W_ii] >= 0; %10^(-6)*eye(size(M_i)+size(W_ii));
                 
-                con5 = [];
-                con6 = [];
-                costFun = 0;
+                con3 = []; % Soft graph constraints
+                con4 = []; % Hard graph constraints
+                costFun0 = 0;
                 for j = 1:1:length(previousSubsystems)
-                    con5_ij = Q_ij{j}.*(null_ij{j}==1)==O_n;
-                    con5_ji = Q_ji{j}.*(null_ji{j}==1)==O_n;
-                    con5 = [con5, con5_ij, con5_ji];
+                    con3_ij = Q_ij{j}.*(null_ij{j}==1)==O_n;
+                    con3_ji = Q_ji{j}.*(null_ji{j}==1)==O_n;
+                    con3 = [con3, con3_ij, con3_ji];
                     
-                    con6_ij = Q_ij{j}.*(adj_ij{j}==0)==O_n;
-                    con6_ji = Q_ji{j}.*(adj_ji{j}==0)==O_n;
-                    con6 = [con6, con6_ij, con6_ji]; 
+                    con4_ij = Q_ij{j}.*(adj_ij{j}==0)==O_n;
+                    con4_ji = Q_ji{j}.*(adj_ji{j}==0)==O_n;
+                    con4 = [con4, con4_ij, con4_ji]; 
 
-                    costFun = costFun + norm(Q_ij{j}.*cost_ij{j},normType) + norm(Q_ji{j}.*cost_ji{j},normType);
+                    costFun0 = costFun0 + sum(sum(Q_ij{j}.*cost_ij{j})) + sum(sum(Q_ji{j}.*cost_ji{j}));
                 end
 
-                con5_ii = Q_ii.*(null_ii==1)==O_n;
-                con5 = [con5, con5_ii];
+                con3_ii = Q_ii.*(null_ii==1)==O_n;
+                con3 = [con3, con3_ii];
                 
-                costFun = costFun + norm(Q_ii.*cost_ii,normType);
+                costFun0 = costFun0 + sum(sum(Q_ii.*cost_ii));
+                con0 = costFun0 >= 0.001;
                 
                 if isSoft
-                    cons = [con1,con2,con3,con4,con5];
+                    cons = [con0,con1,con2,con3];
                 else
-                    cons = [con1,con2,con3,con4,con5,con6];
+                    cons = [con0,con1,con2,con3,con4];
                 end
+                
+                costFun =  costCoefficient1*costFun0 + costCoefficient2*gammaSq_i;
 
                 sol = optimize(cons,costFun,solverOptions);
                 isRobustStabilizable = sol.problem==0;
@@ -1433,6 +1462,20 @@ classdef Vehicle < handle
                 p_iVal = value(p_i);
                 Q_iiVal = value(Q_ii);
                 gammaSq_iVal = value(gammaSq_i);
+                costFun0Val = value(costFun0);
+
+                con2Val = value([M_i, W_i';W_i, W_ii]);
+                eigVals = eig(con2Val);   
+%                 minEigVal = min(eigVals);
+%                 con0Val = value(con0)
+%                 con1Val = value(con1)
+%                 con2Val = value(con2)
+%                 con3Vals = [];
+%                 for k = 1:1:length(con3)
+%                     con3Vals = [con3Vals, value(con3(k))];
+%                 end
+%                 con3Val = any(con3Vals(:) == 0)
+
                 W_iVal = value(W_i);
                 W_iiVal = value(W_ii);
 
@@ -1443,35 +1486,43 @@ classdef Vehicle < handle
                     
                     Q_ijVal = value(Q_ij{j});
                     Q_jiVal = value(Q_ji{j});
-                    p_jVal = subsystems(jInd).dataToBeDistributed.P;
-                    X_j_11 = -subsystems(jInd).nu*I_n;
+                    p_jVal = subsystems(jInd+1).dataToBeDistributed.P;
+                    X_j_11 = -subsystems(jInd+1).nu*I_n;
                           
                     K_ij = (p_iVal*X_i_11)\Q_ijVal;
                     K_ijVals{jInd} = K_ij;
                     obj.controllerGainsCollection.decenStabCont1{jInd} = K_ij;
                                         
                     K_ji = (p_jVal*X_j_11)\Q_jiVal;
-                    K_jiVals{jInd} = K_ji; % these values will be loaded outside the function
+                    K_jiVals{jInd} = K_ji; % these values will be loaded to subsystem j outside of this function
                 end
                 
                 % Need to compute \tilede{W}_i and \tilde{W}_{ii} for storage
-                tildeW_i = W_iVal*M1_i;
-                tildeW_ii = W_iiVal - tildeW_i*scriptD_i*tildeW_i'; % Note that here, \tilde{W}_ii, W_ii, \tilde{W}_i are different.
+                tildeW_i = W_iVal;
+                tildeW_ii = W_iiVal;
+
                 tildeW_i = [tildeW_i, tildeW_ii];
 
-                if abs(det(tildeW_ii))<0.000000001
-                    disp("Error: det(tildeW_ii) low");
-                    isRobustStabilizable = 0;
-                end
-
+                % Storing
                 obj.dataToBeDistributed.P = p_iVal;             
                 obj.dataToBeDistributed.gammaSq = gammaSq_iVal;
-                obj.dataToBeDistributed.tildeW = tildeW_i;      % Storing
+                obj.dataToBeDistributed.tildeW = tildeW_i;      
 
-                disp(['Data saved ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
-                if ~isRobustStabilizable
-                    disp(['LMI is not feasible at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
+                if displayMasseges
+                    disp(['Data saved at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
+                    if ~isRobustStabilizable
+                        disp(['LMI is not feasible at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
+                    else
+                        disp(['LMI is feasible at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
+                    end
                 end
+
+                if ~isRobustStabilizable && (min(eigVals)<-0.000001 || p_iVal < 0)
+                    disp(['Decentralized Synthesis Failed at: ',num2str(iInd),'.'])
+                else
+                    isRobustStabilizable = 1;
+                    disp(['Decentralized Synthesis Success at: ',num2str(iInd),' with gammaSq=',num2str(value(gammaSqVal)),'.'])
+                end 
 
             end
         end

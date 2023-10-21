@@ -947,7 +947,7 @@ classdef Platoon < handle
             costFun0 = sum(sum(Q.*costMatBlock));
     
             % Minimum Budget Constraints
-            con0 = costFun0 >= 0;
+            con0 = costFun0 >= 0.0001;
                         
             % Basic Constraints
             con1 = P >= 0;
@@ -977,7 +977,16 @@ classdef Platoon < handle
             costFun0Val = value(costFun0)
             costFunVal = value(costFun)
             PVal = value(P)
-            QVal = value(Q);
+            QVal = value(Q)
+
+%             con2Val = value([DMat, MMat; MMat', ThetaMat]);
+%             eigVals = eig(con2Val);   
+%             minEigVal = min(eigVals)
+%             con2Val = value(con2)
+
+            % tempMat = value([DMat, MMat; MMat', ThetaMat])
+            % detTempMat = det(tempMat)
+            
             X_p_11Val = value(X_p_11);
             X_p_21Val = value(X_p_21);
 
@@ -1026,16 +1035,17 @@ classdef Platoon < handle
         
 
         % Decentralized Robust Controller Synthesis (Error Dynamics Formulation II)
-        function status = decentralizedRobustControllerSynthesis2(obj,nuBar,rhoBar,gammaSqBar)
+        function status = decentralizedRobustControllerSynthesis2(obj,pVals)
+            displayMasseges = 1;
+            N = length(obj.vehicles)-1;
+            indexing = 1:1:N; % Lets use the default indexin scheme
+            isSoft = 1;
 
-            if isempty(indexing)
-                indexing = [1:1:(length(obj.vehicles)-1)];
-            end
-        
+            gammaSqVal = 0;
             for i = 1:1:length(indexing)
                 iInd = indexing(i);
                 previousSubsystems = indexing(1:i-1);                
-                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd).robustControllerSynthesis2(previousSubsystems, obj.vehicles, nuBar, rhoBar, gammaSqBar);
+                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL,LVal] = obj.vehicles(iInd+1).robustControllerSynthesis2(previousSubsystems, obj.vehicles, pVals(iInd), displayMasseges, isSoft);
 
                 K{iInd,iInd} = K_ii;
                 for j = 1:1:length(previousSubsystems)
@@ -1043,24 +1053,64 @@ classdef Platoon < handle
                     K{iInd,jInd} = K_ijVals{jInd};
                     K{jInd,iInd} = K_jiVals{jInd};
                 end
+
+                if gammaSq_iVal > gammaSqVal
+                    gammaSqVal = gammaSq_iVal;
+                end
         
                 if ~isRobustStabilizable
                     break
                 end
             end
-        
+            
             if isRobustStabilizable
+                disp(['Global Synthesis Success with gammaSq=',num2str(value(gammaSqVal))])
                 status = 1;
+
+                maxNorm = 0;
+                for i = 1:1:N
+                    for j = 1:1:N
+                        normVal = max(max(abs(K{i,j})));
+                        if normVal>maxNorm 
+                            maxNorm = normVal;
+                        end
+                    end
+                end
+                
+                % filtering out extremely small interconnections
+                for i=1:1:N
+                    for j=1:1:N
+                        if i~=j
+                            if isSoft
+                                K{i,j}(abs(K{i,j})<0.0001*maxNorm) = 0;                       
+                            else
+                                if A(i+1,j+1)==0
+                                    K{i,j} = zeros(3);
+                                end
+                            end
+                        end
+                        K_ijMax = max(abs(K{i,j}(:)));
+                        K{i,j}(abs(K{i,j})<0.01*K_ijMax) = 0;
+                    end
+                end
+
+                K
+                % Loading topology based on K
                 obj.loadTopologyFromK2(K); 
                 obj.loadControllerGains2(K);
             else
+                disp(['Global Synthesis Failed'])
                 status = 0;
             end
+
         end 
 
 
-        % Compact objective function for co-design : Centralized Robust Controller Synthesis (Error Dynamics II) 
-        function gammaSqVal = centralizedRobustControllerSynthesis2Compact(obj,pVals)
+        
+        %% Co-design functions
+
+        % Objective function for co-design : Centralized Robust Controller Synthesis (Error Dynamics II) 
+        function gammaSqVal = centralizedRobustControllerSynthesis2Codesign(obj,pVals)
             
             % Number of follower vehicles
             N = obj.numOfVehicles-1; 
@@ -1148,7 +1198,7 @@ classdef Platoon < handle
             costFun0 = sum(sum(Q.*costMatBlock));
     
             % Minimum Budget Constraints
-            con0 = costFun0 >= 0;
+            con0 = costFun0 >= 0.0001;
                         
             % Basic Constraints
             con1 = P >= 0;
@@ -1235,7 +1285,7 @@ classdef Platoon < handle
 
 
         % Feasibility constraints for Co-Design : Centralized Robust Controller Synthesis (Error Dynamics II) 
-        function [C,Ceq] = centralizedRobustControllerSynthesis2Feasibility(obj,pVals)
+        function [C,Ceq] = centralizedRobustControllerSynthesis2CodesignFeasibility(obj,pVals)
             
             % Number of follower vehicles
             N = obj.numOfVehicles-1; 
@@ -1330,7 +1380,7 @@ classdef Platoon < handle
             costFun0 = sum(sum(Q.*costMatBlock));
     
             % Minimum Budget Constraints
-            con0 = costFun0 >= 0;
+            con0 = costFun0 >= 0.0001;
                         
             % Basic Constraints
             con1 = P >= 0;
@@ -1406,6 +1456,65 @@ classdef Platoon < handle
             Ceq = [];
 
         end  
+
+
+
+        function gammaSqVal = decentralizedRobustControllerSynthesis2Codesign(obj,pVals)
+            displayMasseges = 0;
+            N = length(obj.vehicles)-1;
+            indexing = 1:1:N; % Lets use the default indexin scheme
+            isSoft = 1;
+
+            gammaSqVal = 0;
+            for i = 1:1:length(indexing)
+                iInd = indexing(i);
+                previousSubsystems = indexing(1:i-1);                
+                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL_i,L_iVal] = obj.vehicles(iInd+1).robustControllerSynthesis2(previousSubsystems, obj.vehicles, pVals(iInd), displayMasseges, isSoft);
+                
+                if ~isRobustStabilizable
+                    break
+                end
+
+                if gammaSq_iVal > gammaSqVal
+                    gammaSqVal = gammaSq_iVal;
+                end                
+            end
+
+            if isRobustStabilizable
+                disp(['Global Synthesis Success with gammaSq=',num2str(value(gammaSqVal))])
+            else
+                gammaSqVal = 1000000-i*(10000);
+                disp(['Global Synthesis Failed'])
+            end
+                  
+        end 
+
+        function [C,Ceq] = decentralizedRobustControllerSynthesis2CodesignFeasibility(obj,pVals)
+            displayMasseges = 0;
+            N = length(obj.vehicles)-1;
+            indexing = 1:1:N; % Lets use the default indexin scheme
+            isSoft = 1;
+
+            statusLVals = zeros(N,1);
+            LVals = zeros(N,3);
+            for i = 1:1:length(indexing)
+                iInd = indexing(i);
+                previousSubsystems = indexing(1:i-1);                
+                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL_i,L_iVal] = obj.vehicles(iInd+1).robustControllerSynthesis2(previousSubsystems, obj.vehicles, pVals(iInd), displayMasseges, isSoft);
+                
+                if ~isRobustStabilizable
+                    break
+                else
+                    statusLVals(i) = statusL_i;
+                    LVals(i,:) = L_iVal;
+                end
+            end
+
+            statusG = isRobustStabilizable;
+            statusK = norm(LVals) <= 10000*sqrt(N);
+            C = [statusLVals-ones(N,1); statusG-1; statusK-1];
+            Ceq = [];
+        end
 
         % (Old) Centralized Robust Controller Synthesis (Error Dynamics II) 
 %         function status = centralizedRobustControllerSynthesis2Old(obj)
@@ -1722,15 +1831,10 @@ classdef Platoon < handle
 
 
         %% Codesign
-        function pVals = optimizeCodesignParameters(obj)
+        function pVals = optimizeCodesignParameters(obj,isCentralized)
             
             N = obj.numOfVehicles-1;
-            
-            % f: Function of p_i parameters (each p_i used for local controller design), which will determine the resulting gamma value from the global design
-            % f is what we need to optimize with respect to the used p_i paramters
-            f = @(P)obj.centralizedRobustControllerSynthesis2Compact(P);
-            nonlcon = @(P)obj.centralizedRobustControllerSynthesis2Feasibility(P);
-            
+
             % pARAMETERS
             options = optimoptions('fmincon');
  
@@ -1748,44 +1852,23 @@ classdef Platoon < handle
             lb = zeros(N,1);
             ub = inf*ones(N,1);
             
-            p0 = (1/N)*ones(N,1); % initial condition
-            [pVals,fval] = fmincon(f,p0,A,b,Aeq,beq,lb,ub,nonlcon,options)
-%             [pVals,fval] = fmincon(f,p0,A,b,Aeq,beq,lb,ub)
-            % p = 0.0449
             
+            
+            if isCentralized
+                p0 = (1/N)*ones(N,1); % initial condition
+                % f: Function of p_i parameters (each p_i used for local controller design), which will determine the resulting gamma value from the global design
+                % f is what we need to optimize with respect to the used p_i paramters
+                f = @(P)obj.centralizedRobustControllerSynthesis2Codesign(P);
+                nonlcon = @(P)obj.centralizedRobustControllerSynthesis2CodesignFeasibility(P);
+                [pVals,fval] = fmincon(f,p0,A,b,Aeq,beq,lb,ub,nonlcon,options)
+            else
+                p0 = (1/N)*ones(N,1);
+                f = @(P)obj.decentralizedRobustControllerSynthesis2Codesign(P);
+                nonlcon = @(P)obj.decentralizedRobustControllerSynthesis2CodesignFeasibility(P);
+%                 [pVals,fval] = fmincon(f,p0,A,b,Aeq,beq,lb,ub)
+                [pVals,fval] = fmincon(f,p0,A,b,Aeq,beq,lb,ub,nonlcon,options)
+            end           
             pVals = pVals';
-%             [statusL,nuVal,rhoVal,LVal] = synthesizeLocalControllersCompact(pVals)
-%             [statusG,gammaVal,KVal] = synthesizeGlobalRobustControllersCompact(platoonObj,nuVal,rhoVal)
-
-%             function gammaVal = synthesizeControllersCompact(platoonObj,pVal)
-%     
-%                 [statusL,nuVal,rhoVal,LVal] = synthesizeLocalControllersCompact(pVal);
-%                 if statusL == 0
-%                      gammaVal = 1000000;
-%                      return
-%                 else
-%                     [statusG,gammaVal,KVal] = synthesizeGlobalRobustControllersCompact(platoonObj,nuVal,rhoVal);
-%                     if statusG == 0 
-%                         gammaVal = 1000000;
-%                         return
-%                     end
-%                 end
-%             end
-%             
-%             function [C,Ceq] = synthesizeControllersCompactFeasibility(platoonObj,pVal)
-%             
-%                 [statusL,nuVal,rhoVal,LVal] = synthesizeLocalControllersCompact(pVal);
-%                 if statusL == 0
-%                     statusG = 0;
-%                 else
-%                     [statusG,gammaVal,KVal] = synthesizeGlobalRobustControllersCompact(platoonObj,nuVal,rhoVal);
-%                 end
-%                 statusK = norm(LVal) <= 10000;
-%                 
-%                 C = [statusL-1; statusG-1; statusK-1];
-%                 Ceq = [];
-%             
-%             end
         end
         
     end
