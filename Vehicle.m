@@ -1221,15 +1221,16 @@ classdef Vehicle < handle
 
             % i = length(previousSubsystems)+1;
             iInd = obj.vehicleIndex-1;
-            N = 5;
+            N = iInd;
             costCoefficient1 = 1;
-            costCoefficient2 = 1000000; 
+            costCoefficient2 = 1; 
+            costCoefficient3 = 1; 
 
-            [statusL,LVal,nuVal,rhoVal,gammaSqVal] = obj.synthesizeLocalControllersParameterized(2,pVal);
+            [statusL,LVal,nuVal,rhoVal,gammaSqLVal] = obj.synthesizeLocalControllersParameterized(2,pVal);
             if displayMasseges
                 disp(['Robust Stabilizing at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
                 if statusL == 1
-                    disp(['Local Synthesis Success at: ',num2str(iInd),' with gammaSq=',num2str(value(gammaSqVal)),'.'])
+                    disp(['Local Synthesis Success at: ',num2str(iInd),' with gammaSq=',num2str(value(gammaSqLVal)),'.'])
                 else
                     disp(['Local Synthesis Failed at: ',num2str(iInd),'.'])
                 end
@@ -1272,7 +1273,7 @@ classdef Vehicle < handle
                 
                 costFun0 = sum(sum(Q_ii.*cost_ii));
 
-                con0 = costFun0 >= 0.0001;
+                con0 = costFun0 >= 0.001;
                 con1 = p_i >= 0;
 
 %                 DMat = [X_p_11, O; O, I];
@@ -1290,7 +1291,7 @@ classdef Vehicle < handle
 
                 con3 = Q_ii.*(null_ii==1)==O_n;
 
-                costFun =  costCoefficient1*costFun0 + costCoefficient2*gammaSq_i;
+                costFun =  costCoefficient1*costFun0 + costCoefficient2*gammaSq_i + costCoefficient3*(gammaSq_i-gammaSqLVal)^2;
 
                 sol = optimize([con1,con2,con3],costFun,solverOptions);
                 isRobustStabilizable = sol.problem==0;
@@ -1335,10 +1336,11 @@ classdef Vehicle < handle
                 end
 
                 if ~isRobustStabilizable && (min(eigVals)<-0.000001 || p_iVal < 0)
-                    return
+                    disp(['Decentralized Synthesis Failed at: ',num2str(iInd),'.'])
                 else
                     isRobustStabilizable = 1;
-                end 
+                    disp(['Decentralized Synthesis Success at: ',num2str(iInd),' with gammaSq=',num2str(value(gammaSq_iVal)),'.'])
+                end
 
             else
                 % This subsystem has to talk with all the previosSubsystems
@@ -1454,7 +1456,7 @@ classdef Vehicle < handle
                     cons = [con0,con1,con2,con3,con4];
                 end
                 
-                costFun =  costCoefficient1*costFun0 + costCoefficient2*gammaSq_i;
+                costFun =  costCoefficient1*costFun0 + costCoefficient2*gammaSq_i + costCoefficient3*(gammaSq_i-gammaSqLVal)^2;
 
                 sol = optimize(cons,costFun,solverOptions);
                 isRobustStabilizable = sol.problem==0;
@@ -1521,7 +1523,7 @@ classdef Vehicle < handle
                     disp(['Decentralized Synthesis Failed at: ',num2str(iInd),'.'])
                 else
                     isRobustStabilizable = 1;
-                    disp(['Decentralized Synthesis Success at: ',num2str(iInd),' with gammaSq=',num2str(value(gammaSqVal)),'.'])
+                    disp(['Decentralized Synthesis Success at: ',num2str(iInd),' with gammaSq=',num2str(value(gammaSq_iVal)),'.'])
                 end 
 
             end
