@@ -1790,36 +1790,37 @@ classdef Vehicle < handle
 
                 con4 = R_i*Q_ii+Q_ii'*R_i-p_i*nu_i*epsilon_i*I_n <= 0;
                 
-                % To Guarantee DSS, we need to confine the K_ij (Q_ij) values (DSS constraint 2)
-                % (for the second and other followers, the information from neighboring vehicles are considered, i.e., K_ij)
-                 
-                for j = 1:1:length(previousSubsystems)
-                    con3_ij = Q_ij{j}.*(null_ij_DSS{j}==1) == O_n;
-                    con3_ji = Q_ji{j}.*(null_ji_DSS{j}==1) == O_n;
-                    con3 = [con3, con3_ij, con3_ji];
-
-                    con3_ij_hard = Q_ij{j}.*(adj_ij{j}==0) == O_n;
-                    con3_ji_hard = Q_ji{j}.*(adj_ji{j}==0) == O_n;
-                    con3_hard = [con3_hard, con3_ij_hard, con3_ji_hard]; 
-
-                    costFun0 = costFun0 + sum(sum(Q_ij{j}.*cost_ij{j})) + sum(sum(Q_ji{j}.*cost_ji{j}));
-
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    % Iteratively add the K_ij values to the LHS of the DSS constraint
-
-                    mu_i = (rho_i+epsilon_i-1)/MaxEigPVal;
-                    con5_value = con5_value + sqrt(1/(mu_i*MinEigR_i))*norm(PVal*Q_ij{j})+1/(2^iInd)*(p_i*nu_i);  
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                end
-                K_ij = k_ij*[0 0 0; 0 0 0; 0 0 1];
-
+                % We confine ourselves to a specific type of K_ij (Q_ij)
+                % values (for the second and other followers, the information from 
+                % neighboring vehicles are considered, i.e., K_ij)
+                % 
+                % for j = 1:1:length(previousSubsystems)
+                %     con3_ij = Q_ij{j}.*(null_ij_DSS{j}==1) == O_n;
+                %     con3_ji = Q_ji{j}.*(null_ji_DSS{j}==1) == O_n;
+                %     con3 = [con3, con3_ij, con3_ji];
+                % 
+                %     con3_ij_hard = Q_ij{j}.*(adj_ij{j}==0) == O_n;
+                %     con3_ji_hard = Q_ji{j}.*(adj_ji{j}==0) == O_n;
+                %     con3_hard = [con3_hard, con3_ij_hard, con3_ji_hard]; 
+                % 
+                %     costFun0 = costFun0 + sum(sum(Q_ij{j}.*cost_ij{j})) + sum(sum(Q_ji{j}.*cost_ji{j}));
+                % 
+                %     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                %     % Iteratively add the K_ij values to the LHS of the DSS constraint
+                % 
+                %     mu_i = (rho_i+epsilon_i-1)/MaxEigPVal;
+                %     con5_value = con5_value + sqrt(1/(mu_i*MinEigPVal))*norm(PVal*Q_ij{j})+1/(2^iInd)*(p_i*nu_i);  
+                %     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                % end
+                % K_ij = k_ij*[0 0 0; 0 0 0; 0 0 1];
+                
                 % Remaining DSS constraints
                 % First attempt: follow the expression in the paper
                 % Second attempt: use a different norm, i.e., 1-norm
-                % Third attempt: confine ourselves to a specific type of K_ij value, say a scalar k_ij
+                % Third attempt: confine ourselves to a specific type of K_ij value
                 con5 = con5_value <= 0;
-                con6 = rho_i+epsilon_i-1 > 0;
-                con7 = epsilon_i > 0;
+                % con6 = rho_i+epsilon_i-1 > 0;
+                % con7 = epsilon_i > 0;
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
                 costFun0 = costFun0 + sum(sum(Q_ii.*cost_ii));

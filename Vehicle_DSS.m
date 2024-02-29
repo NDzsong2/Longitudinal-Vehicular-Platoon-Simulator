@@ -1,4 +1,4 @@
-classdef Vehicle < handle
+classdef Vehicle_DSS < handle
     %FACILITY Summary of this class goes here
     %   Detailed explanation goes here
     
@@ -38,6 +38,9 @@ classdef Vehicle < handle
         errors
         outputs
 
+        % K_ij values
+        
+        
         % state history
         stateHistory = []
 
@@ -306,6 +309,7 @@ classdef Vehicle < handle
             obj.rho = rho;
         end
 
+
         function status = synthesizeLocalControllers(obj,errorDynamicsType,nuBar,rhoBar)
             % Here we will synthesize the local controllers for local error
             % dynamics to optimize the passivity properties
@@ -400,7 +404,6 @@ classdef Vehicle < handle
             % Here we will synthesize the local controllers for local error
             % dynamics to optimize the passivity properties
             % This is the true local controller synthesis for a given p_i value
-        
             if errorDynamicsType == 1
                 A = [0,1,0;0,0,0;0,0,0]; % For error dynamics type 1
             else
@@ -416,7 +419,7 @@ classdef Vehicle < handle
             K = sdpvar(1,3,'full'); 
         
             nu = sdpvar(1,1,'full');
-            rhoTilde = sdpvar(1,1,'full'); % Representing: 1/rho
+            rhoTilde = sdpvar(1,1,'full'); %Representing: 1/rho
             
             gammaSq = sdpvar(1,1,'full');
         
@@ -456,9 +459,9 @@ classdef Vehicle < handle
             sol = optimize(cons,costFun,solverOptions);
             status = sol.problem == 0; % sol.info;
         
-            PVal = value(P)   % This is the P_i value obtained from solving the local control synthesis
-            KVal = value(K)   % This is \tilde{L}_{ii}
-            LVal = KVal/PVal  % KVal is L and LVal is K in our paper. This LVal is the local controller gain \bar{L}_{ii}
+            PVal = value(P) % This is the P_i value obtained from solving the local control synthesis
+            KVal = value(K) % This is \tilde{L}_{ii}
+            LVal = KVal/PVal % KVal is L and LVal is K in our paper. This LVal is the local controller gain \bar{L}_{ii}
             
             nuVal = value(nu);
             rhoVal = 1/value(rhoTilde);
@@ -471,11 +474,6 @@ classdef Vehicle < handle
             obj.localControllerGains1 = LVal; % Here we need \bar{k}_{i0}^{Local} = 1
             obj.localControllerGains2 = LVal; 
 
-%             if status == 1
-%                 disp(['Synthesis Success at Vehicle ',num2str(obj.vehicleIndex),' with gammaSq=',num2str(value(gammaSqVal)),'.'])
-%             else
-%                 disp(['Synthesis Failed at Vehicle ',num2str(obj.vehicleIndex),'.'])
-%             end
             
         end
 
@@ -1226,7 +1224,7 @@ classdef Vehicle < handle
             costCoefficient1 = 1;
             costCoefficient2 = 1; 
             costCoefficient3 = 1; 
-     
+
             [statusL,PVal,KVal,LVal,nuVal,rhoVal,gammaSqLVal] = obj.synthesizeLocalControllersParameterized(2,pVal);
             if displayMasseges
                 disp(['Robust Stabilizing at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
@@ -1244,7 +1242,6 @@ classdef Vehicle < handle
 
             % Seting up the LMI problem
             solverOptions = sdpsettings('solver','mosek','verbose',0);
-%             solverOptions = sdpsettings('solver','mosek','verbose',2,'warning',1);
             normType = 2; % Type of the norm to be used in the LMI
 
             I_n = eye(3);
@@ -1285,10 +1282,9 @@ classdef Vehicle < handle
                 DMat_ii = [p_i*X_i_11, O_n; O_n, I_n];
                 MMat_ii = [Q_ii, p_i*X_i_11; I_n, O_n]; 
                 TMat_ii = [-X_ii_21*Q_ii-Q_ii'*X_ii_12-p_i*X_i_22, -p_i*X_i_21; -p_i*X_i_12, gammaSq_i*I_n];
-                
                 W_ii = [DMat_ii, MMat_ii; MMat_ii', TMat_ii];
 
-                con2 = W_ii >= 0;%10^(-6)*eye(size(W_ii));
+                con2 = W_ii >= 0; %10^(-6)*eye(size(W_ii));
 
                 con3 = Q_ii.*(null_ii==1)==O_n;
 
@@ -1304,18 +1300,9 @@ classdef Vehicle < handle
 
                 con2Val = value(W_ii);
                 eigVals = eig(con2Val);
-%                 minEigVal = min(eigVals);
-% %                 con0Val = value(con0)
-%                 con1Val = value(con1)
-%                 con2Val = value(con2)
-%                 con3Vals = [];
-%                 for k = 1:1:length(con3)
-%                     con3Vals = [con3Vals, value(con3(k))];
-%                 end
-%                 con3Val = any(con3Vals(:) == 0)
-                
+                                
                 W_iiVal = value(W_ii);
-                tildeW_i = W_iiVal; % Note that, here, \tilde{W}_ii = W_ii = \tilde{W}_i. This also needs to be stored
+                tildeW_i = W_iiVal; % Note that, here, \tilde{W}_ii = W_ii = \tilde{W}_i. This also needs to be stored.
                 
                 K_ii = (p_iVal*X_i_11)\Q_iiVal;
                 obj.controllerGainsCollection.decenRobustCont1{iInd} = K_ii;
@@ -1529,9 +1516,9 @@ classdef Vehicle < handle
 
             end
         end
+        
 
-
-        %% Decentralized Robust Controller Synthesis With DSS Constraints (Error Dynamics II)
+        %% Decentralized Robust Controller Synthesis With DSS Constraint (Error Dynamics II)
         function [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL,LVal] = robustControllerSynthesisDSS2(obj, previousSubsystems, subsystems, pVal, displayMasseges, isSoft)
 
             % i = length(previousSubsystems)+1;
@@ -1576,10 +1563,9 @@ classdef Vehicle < handle
             % Set a fixed value for epsilon_i and make epsilon_i+rho_i>1 satisfied
             epsilon_i = 1.01-rho_i;  
 
-            % min and max eigenvalues of R_i
-            R_i = inv(PVal)
-            MaxEigR_i = max(eig(R_i));
-            MinEigR_i = min(eig(R_i));
+            % min and max eigenvalues of P_i
+            MaxEigPVal = max(eig(PVal));
+            MinEigPVal = min(eig(PVal));
 
             obj.dataToBeDistributed.X = X_ii_12;    
 
@@ -1589,7 +1575,7 @@ classdef Vehicle < handle
 
             if isempty(previousSubsystems)
 
-                % The subsystem only need to test W_ii > 0 (since in this case, there are no subsystems before this ith subsystem)
+                % The subsystem only need to test W_ii > 0
                 p_i = sdpvar(1,1);
                 Q_ii = sdpvar(3,3,'full');
                 gammaSq_i = sdpvar(1,1);
@@ -1610,9 +1596,9 @@ classdef Vehicle < handle
                 con3 = Q_ii.*(null_ii==1) == O_n;     
                 
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                % Additional DSS constraint 1 (on K_ii) is added here (for the first follower, there are no neighboring vehicles)
+                % Our additional DSS constraint is added here (for the first follower, there is no neighboring vehicles)
 
-                con4 = R_i*Q_ii+Q_ii'*R_i-p_i*nu_i*epsilon_i*I_n <= 0;
+                con4 = PVal*Q_ii+Q_ii'*PVal-p_i*nu_i*epsilon_i*I_n <= 0;
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
                 costFun =  costCoefficient1*costFun0 + costCoefficient2*gammaSq_i + costCoefficient3*(gammaSq_i-gammaSqLVal)^2;
@@ -1660,7 +1646,7 @@ classdef Vehicle < handle
                 end
 
             else
-                % This subsystem has to talk with all the previousSubsystems
+                % This subsystem has to talk with all the previosSubsystems
                 % tildeW_ii > 0 iff [M_i, W_i'; W_i, W_ii] > 0 is required where 
                 % M_i = inv((scriptD_i*scriptA_i^T)^{-1}*(scriptD_i)*(scriptD_i*scriptA_i^T)^{-1}') = scriptA_i*scriptD_i*scriptA_i'
 
@@ -1708,8 +1694,8 @@ classdef Vehicle < handle
                     null_ji{j} = [1,1,1; 1,1,1; 0,0,0];
                     
                     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    % In order to solve the optimization with DSS constraint, 
-                    % we confine the structure of Q_ij and Q_ji using these matrices
+                    % In order to solve the optimization with DSS constraint, we confine the structure of Q_ij and Q_ji
+                    % using these matrices
 
                     null_ij_DSS{j} = [1 1 1;1 1 1;1 1 0];
                     null_ji_DSS{j} = [1 1 1;1 1 1;1 1 0];
@@ -1775,8 +1761,8 @@ classdef Vehicle < handle
                     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                     % Iteratively add the K_ij values to the LHS of the DSS constraint
 
-                    mu_i = (rho_i+epsilon_i-1)/MaxEigR_i;
-                    con5_value = con5_value + sqrt(1/(mu_i*MinEigR_i))*norm(PVal*Q_ij{j})+1/(2^iInd)*(p_i*nu_i);  
+                    mu_i = (rho_i+epsilon_i-1)/MaxEigPVal;
+                    con5_value = con5_value + sqrt(1/(mu_i*MinEigPVal))*norm(PVal*Q_ij{j})+1/(2^iInd)*(p_i*nu_i);  
                     % The 2-norm is (k31^2 + k32^2 + k33^2)^(1/2)*(p13^2 +p23^2 + p33^2)^(1/2), and thus, 
                     % it can be somehow simplified
                     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1786,40 +1772,39 @@ classdef Vehicle < handle
                 con3 = [con3, con3_ii];
                 
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                % The additional DSS constraint 1 (on K_ii) is added here 
+                % Our additional DSS constraint is added here (for the second and other followers, the information from neighboring vehicles are considered, i.e., K_ij)
 
-                con4 = R_i*Q_ii+Q_ii'*R_i-p_i*nu_i*epsilon_i*I_n <= 0;
+                con4 = PVal*Q_ii+Q_ii'*PVal-p_i*nu_i*epsilon_i*I_n <= 0;
                 
-                % To Guarantee DSS, we need to confine the K_ij (Q_ij) values (DSS constraint 2)
-                % (for the second and other followers, the information from neighboring vehicles are considered, i.e., K_ij)
-                 
-                for j = 1:1:length(previousSubsystems)
-                    con3_ij = Q_ij{j}.*(null_ij_DSS{j}==1) == O_n;
-                    con3_ji = Q_ji{j}.*(null_ji_DSS{j}==1) == O_n;
-                    con3 = [con3, con3_ij, con3_ji];
-
-                    con3_ij_hard = Q_ij{j}.*(adj_ij{j}==0) == O_n;
-                    con3_ji_hard = Q_ji{j}.*(adj_ji{j}==0) == O_n;
-                    con3_hard = [con3_hard, con3_ij_hard, con3_ji_hard]; 
-
-                    costFun0 = costFun0 + sum(sum(Q_ij{j}.*cost_ij{j})) + sum(sum(Q_ji{j}.*cost_ji{j}));
-
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                    % Iteratively add the K_ij values to the LHS of the DSS constraint
-
-                    mu_i = (rho_i+epsilon_i-1)/MaxEigPVal;
-                    con5_value = con5_value + sqrt(1/(mu_i*MinEigR_i))*norm(PVal*Q_ij{j})+1/(2^iInd)*(p_i*nu_i);  
-                    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-                end
-                K_ij = k_ij*[0 0 0; 0 0 0; 0 0 1];
-
+                % We confine ourselves to a specific type of K_ij (Q_ij) values
+                % 
+                % for j = 1:1:length(previousSubsystems)
+                %     con3_ij = Q_ij{j}.*(null_ij_DSS{j}==1) == O_n;
+                %     con3_ji = Q_ji{j}.*(null_ji_DSS{j}==1) == O_n;
+                %     con3 = [con3, con3_ij, con3_ji];
+                % 
+                %     con3_ij_hard = Q_ij{j}.*(adj_ij{j}==0) == O_n;
+                %     con3_ji_hard = Q_ji{j}.*(adj_ji{j}==0) == O_n;
+                %     con3_hard = [con3_hard, con3_ij_hard, con3_ji_hard]; 
+                % 
+                %     costFun0 = costFun0 + sum(sum(Q_ij{j}.*cost_ij{j})) + sum(sum(Q_ji{j}.*cost_ji{j}));
+                % 
+                %     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                %     % Iteratively add the K_ij values to the LHS of the DSS constraint
+                % 
+                %     mu_i = (rho_i+epsilon_i-1)/MaxEigPVal;
+                %     con5_value = con5_value + sqrt(1/(mu_i*MinEigPVal))*norm(PVal*Q_ij{j})+1/(2^iInd)*(p_i*nu_i);  
+                %     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                % end
+                % K_ij = k_ij*[0 0 0; 0 0 0; 0 0 1];
+                
                 % Remaining DSS constraints
                 % First attempt: follow the expression in the paper
                 % Second attempt: use a different norm, i.e., 1-norm
-                % Third attempt: confine ourselves to a specific type of K_ij value, say a scalar k_ij
+                % Third attempt: confine ourselves to a specific type of K_ij value
                 con5 = con5_value <= 0;
-                con6 = rho_i+epsilon_i-1 > 0;
-                con7 = epsilon_i > 0;
+                % con6 = rho_i+epsilon_i-1 > 0;
+                % con7 = epsilon_i > 0;
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
                 costFun0 = costFun0 + sum(sum(Q_ii.*cost_ii));
@@ -1843,7 +1828,15 @@ classdef Vehicle < handle
 
                 con2Val = value([M_i, W_i';W_i, W_ii]);
                 eigVals = eig(con2Val);   
-
+%                 minEigVal = min(eigVals);
+%                 con0Val = value(con0)
+%                 con1Val = value(con1)
+%                 con2Val = value(con2)
+%                 con3Vals = [];
+%                 for k = 1:1:length(con3)
+%                     con3Vals = [con3Vals, value(con3(k))];
+%                 end
+%                 con3Val = any(con3Vals(:) == 0)
 
                 W_iVal = value(W_i);
                 W_iiVal = value(W_ii);
