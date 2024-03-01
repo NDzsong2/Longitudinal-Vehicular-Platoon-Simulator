@@ -225,9 +225,9 @@ classdef Network < handle
                         else                                % Robust
                             status = obj.platoons(k).decentralizedRobustControllerSynthesis2(pVals(k,:));
                         end
-                    elseif ~isCentralized == 1 && isDSS     % Decentralized & DSS
-                            status = obj.platoons(k).decentralizedRobustControllerSynthesisDSS2(pVals(k,:));  
-                                                            % Robust
+                    elseif ~isCentralized == 1 && isDSS    % Decentralized & DSS
+                            status = obj.platoons(k).decentralizedRobustControllerSynthesisDSS2(pVals(k,:));
+                        end
                     end
                 end
                 

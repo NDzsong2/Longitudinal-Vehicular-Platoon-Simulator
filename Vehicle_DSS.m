@@ -60,7 +60,7 @@ classdef Vehicle_DSS < handle
     
     methods
 
-        function obj = Vehicle(k,i,parameters,states,desiredSeparation,noiseMean,noiseStd)
+        function obj = Vehicle_DSS(k,i,parameters,states,desiredSeparation,noiseMean,noiseStd)
 
             % Constructor
             obj.platoonIndex = k;
