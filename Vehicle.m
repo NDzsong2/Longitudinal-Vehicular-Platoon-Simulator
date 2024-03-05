@@ -53,6 +53,9 @@ classdef Vehicle < handle
 
         % graphicHandles
         graphics = []
+        
+        % collection of R_i matrix for DSS condition verification
+        R_i
     end
     
     methods
@@ -1578,6 +1581,7 @@ classdef Vehicle < handle
 
             % min and max eigenvalues of R_i
             R_i = inv(PVal)
+            obj.R_i = R_i;
             MaxEigR_i = max(eig(R_i));
             MinEigR_i = min(eig(R_i));
 
@@ -1596,7 +1600,7 @@ classdef Vehicle < handle
 
                 costFun0 = sum(sum(Q_ii.*cost_ii)); 
 
-                con0 = costFun0 >= 0.001;
+                con0 = costFun0 >= 0.0001;
                 con1 = p_i >= 0;
 
                 DMat_ii = [p_i*X_i_11, O_n; O_n, I_n];
@@ -1832,7 +1836,7 @@ classdef Vehicle < handle
                 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
                 costFun0 = costFun0 + sum(sum(Q_ii.*cost_ii));
-                con0 = costFun0 >= 0.001;
+                con0 = costFun0 >= 0.0001;
                 
                 if isSoft               
                     cons = [con0,con1,con2,con3,con4,con5];

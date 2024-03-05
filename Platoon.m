@@ -14,6 +14,8 @@ classdef Platoon < handle
        
         graphics1 = []
         graphics2 = []
+
+        K % controller gains obtained 
     end
     
     methods
@@ -1328,7 +1330,7 @@ classdef Platoon < handle
                     end
                 end
 
-                K
+                obj.K = K
                 % Loading topology based on K
                 obj.loadTopologyFromK2(K); 
                 obj.loadControllerGains2(K);
