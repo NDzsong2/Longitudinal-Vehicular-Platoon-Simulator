@@ -89,9 +89,6 @@ classdef Network < handle
                 % Generate the noises
                 obj.platoons(k).generateNoises();
 
-                % Error Dynamics - I : Computing Platooning Errors and Controls
-%                 obj.platoons(k).computePlatooningErrors1();
-%                 obj.platoons(k).computeControlInputs1(t);
 
                 % Error Dynamics - II : Computing Platooning Errors and Controls
                 obj.platoons(k).computePlatooningErrors2();
@@ -102,6 +99,7 @@ classdef Network < handle
                 totalError = totalError + platoonError;
 
             end
+
 
             % Update the time, error and cost
             costSoFar = obj.cost^2*obj.time;
@@ -189,11 +187,10 @@ classdef Network < handle
 
 
 
-        %% Controller computation
         function output = loadPlatoonControllers(obj,errorDynamicsType,isCentralized,isDSS,isOnlyStabilizing,gammaSqBar,nuBar,rhoBar,pVals)
             for k = 1:1:obj.numOfPlatoons
 
-                % Controller Types:
+                %% Controller Types:
                 % There can be three factors that determines the controller
                 % type: (i) Centralized/Decentralized, (ii)
                 % Stabilizing/Robust, and (iii) Error Dynamics Type

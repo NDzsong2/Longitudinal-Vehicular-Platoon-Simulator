@@ -107,14 +107,12 @@ classdef Topology < handle
                 nodeNames{i} = num2str(i-1);
                 % From node i, there can be links going to all other NBar nodes 
                 for j = 1:1:NBar
-                    if j~=1 && j~=i
-                        if abs(i-j)<=1 % If i and j are adjacent, add a link from i to j
-                            if i < j
+                    if i < j
+                        if j ~= 1 && j~=i
+                            if abs(i-j)<=1 % If i and j are adjacent, add a link from i to j
                                 startNodes = [startNodes,i];
                                 endNodes = [endNodes,j];
-                            end
-                        elseif rand(1) <= 0.9*(1/abs(i-j))
-                            if i < j
+                            elseif rand(1) <= 0.8*(1/abs(i-j))
                                 startNodes = [startNodes,i];
                                 endNodes = [endNodes,j];
                             end
