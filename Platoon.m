@@ -16,6 +16,7 @@ classdef Platoon < handle
         graphics2 = []
 
         K % controller gains obtained 
+        R
     end
     
     methods
@@ -130,7 +131,7 @@ classdef Platoon < handle
                 startPos = obj.vehicles(startVehicleIndex).states(1) - obj.vehicles(startVehicleIndex).vehicleParameters(2)/2;
                 endPos = obj.vehicles(endVehicleIndex).states(1) - obj.vehicles(endVehicleIndex).vehicleParameters(2)/2;
                 midPos = (startPos + endPos)/2;
-                midPointHeight = -3*sign(startPos-endPos)+0.05*abs(startPos-endPos)+1.5*(startPos<endPos); % 4
+                midPointHeight = -5*sign(startPos-endPos)+0.05*abs(startPos-endPos)-0.5*(startPos<endPos); % 4
 
                 startPosY = obj.vehicles(startVehicleIndex).vehicleParameters(2)*3/8;
                 endPosY = obj.vehicles(endVehicleIndex).vehicleParameters(2)*3/8;
@@ -190,7 +191,7 @@ classdef Platoon < handle
                     startPos = obj.vehicles(startVehicleIndex).states(1) - obj.vehicles(startVehicleIndex).vehicleParameters(2)/2;
                     endPos = obj.vehicles(endVehicleIndex).states(1) - obj.vehicles(endVehicleIndex).vehicleParameters(2)/2;
                     midPos = (startPos + endPos)/2;
-                    midPointHeight = -3*sign(startPos-endPos)+0.05*abs(startPos-endPos)+1.5*(startPos<endPos); % 4
+                    midPointHeight = -5*sign(startPos-endPos)+0.05*abs(startPos-endPos)-0.5*(startPos<endPos); % 4
                     
                     startPosY = obj.vehicles(startVehicleIndex).vehicleParameters(2)*3/8;
                     endPosY = obj.vehicles(endVehicleIndex).vehicleParameters(2)*3/8;
@@ -413,7 +414,7 @@ classdef Platoon < handle
                         if isSoft
                             K{i,j}(abs(K{i,j})<0.000001*maxNorm) = 0;                       
                         else
-                            if A(i+1,j+1)==0
+                            if A(j+1,i+1)==0
                                 K{i,j} = zeros(3);
                             end
                         end
@@ -638,7 +639,7 @@ classdef Platoon < handle
                         if isSoft
                             K{i,j}(abs(K{i,j})<0.000001*maxNorm) = 0;                       
                         else
-                            if A(i+1,j+1)==0
+                            if A(j+1,i+1)==0
                                 K{i,j} = zeros(3);
                             end
                         end
@@ -824,7 +825,7 @@ classdef Platoon < handle
                         if isSoft
                             K{i,j}(abs(K{i,j})<0.000001*maxNorm) = 0;                       
                         else
-                            if A(i+1,j+1)==0
+                            if A(j+1,i+1)==0
                                 K{i,j} = zeros(3);
                             end
                         end
@@ -949,7 +950,7 @@ classdef Platoon < handle
             costFun0 = sum(sum(Q.*costMatBlock));
     
             % Minimum Budget Constraints
-            con0 = costFun0 >= 0.0001;
+            con0 = costFun0 >= 0.002;
                         
             % Basic Constraints
             con1 = P >= 0;
@@ -980,6 +981,7 @@ classdef Platoon < handle
             costFunVal = value(costFun)
             PVal = value(P)
             QVal = value(Q)
+
 
 %             con2Val = value([DMat, MMat; MMat', ThetaMat]);
 %             eigVals = eig(con2Val);   
@@ -1016,7 +1018,7 @@ classdef Platoon < handle
                         if isSoft
                             K{i,j}(abs(K{i,j})<0.0001*maxNorm) = 0;                       
                         else
-                            if A(i+1,j+1)==0
+                            if A(j+1,i+1)==0
                                 K{i,j} = zeros(3);
                             end
                         end
@@ -1028,7 +1030,7 @@ classdef Platoon < handle
                 end
             end
       
-            K
+            obj.K = K
             obj.loadTopologyFromK2(K);
             obj.loadControllerGains2(K);
 
@@ -1042,12 +1044,18 @@ classdef Platoon < handle
             N = length(obj.vehicles)-1;
             indexing = 1:1:N; % Lets use the default indexin scheme
             isSoft = 1;
+            
+            G = obj.topology.graph;
+            A = adjacency(G);
 
             gammaSqVal = 0;
             for i = 1:1:length(indexing)
                 iInd = indexing(i);
-                previousSubsystems = indexing(1:i-1);                
+                previousSubsystems = indexing(1:i-1);  
+
+                tic
                 [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL,LVal] = obj.vehicles(iInd+1).robustControllerSynthesis2(previousSubsystems, obj.vehicles, pVals(iInd), displayMasseges, isSoft);
+                toc
 
                 K{iInd,iInd} = K_ii;
                 for j = 1:1:length(previousSubsystems)
@@ -1086,7 +1094,7 @@ classdef Platoon < handle
                             if isSoft
                                 K{i,j}(abs(K{i,j})<0.0001*maxNorm) = 0;                       
                             else
-                                if A(i+1,j+1)==0
+                                if A(j+1,i+1)==0
                                     K{i,j} = zeros(3);
                                 end
                             end
@@ -1095,8 +1103,9 @@ classdef Platoon < handle
                         K{i,j}(abs(K{i,j})<0.01*K_ijMax) = 0;
                     end
                 end
+                
 
-                K
+                obj.K = K
                 % Loading topology based on K
                 obj.loadTopologyFromK2(K); 
                 obj.loadControllerGains2(K);
@@ -1246,7 +1255,7 @@ classdef Platoon < handle
                         if isSoft
                             K{i,j}(abs(K{i,j})<0.0001*maxNorm) = 0;                       
                         else
-                            if A(i+1,j+1)==0
+                            if A(j+1,i+1)==0
                                 K{i,j} = zeros(3);
                             end
                         end
@@ -1320,7 +1329,7 @@ classdef Platoon < handle
                             if isSoft
                                 K{i,j}(abs(K{i,j})<0.0001*maxNorm) = 0;                       
                             else
-                                if A(i+1,j+1)==0
+                                if A(j+1,i+1)==0
                                     K{i,j} = zeros(3);
                                 end
                             end
@@ -1435,7 +1444,7 @@ classdef Platoon < handle
             costFun0 = sum(sum(Q.*costMatBlock));
     
             % Minimum Budget Constraints
-            con0 = costFun0 >= 0.0001;
+            con0 = costFun0 >= 0.002;
                         
             % Basic Constraints
             con1 = P >= 0;
@@ -1493,7 +1502,7 @@ classdef Platoon < handle
 %                         if isSoft
 %                             K{i,j}(abs(K{i,j})<0.0001*maxNorm) = 0;                       
 %                         else
-%                             if A(i+1,j+1)==0
+%                             if A(j+1,i+1)==0
 %                                 K{i,j} = zeros(3);
 %                             end
 %                         end
@@ -1617,7 +1626,7 @@ classdef Platoon < handle
             costFun0 = sum(sum(Q.*costMatBlock));
     
             % Minimum Budget Constraints
-            con0 = costFun0 >= 0.0001;
+            con0 = costFun0 >= 0.002;
                         
             % Basic Constraints
             con1 = P >= 0;
@@ -1675,7 +1684,7 @@ classdef Platoon < handle
 %                         if isSoft
 %                             K{i,j}(abs(K{i,j})<0.0001*maxNorm) = 0;                       
 %                         else
-%                             if A(i+1,j+1)==0
+%                             if A(j+1,i+1)==0
 %                                 K{i,j} = zeros(3);
 %                             end
 %                         end
@@ -1700,7 +1709,7 @@ classdef Platoon < handle
             displayMasseges = 0;
             N = length(obj.vehicles)-1;
             indexing = 1:1:N; % Lets use the default indexin scheme
-            isSoft = 1;
+            isSoft = 0;
 
             gammaSqVal = 0;
             for i = 1:1:length(indexing)
@@ -1732,7 +1741,7 @@ classdef Platoon < handle
             displayMasseges = 0;
             N = length(obj.vehicles)-1;
             indexing = 1:1:N; % Lets use the default indexin scheme
-            isSoft = 1;
+            isSoft = 0;
 
             statusLVals = zeros(N,1);
             LVals = zeros(N,3);
@@ -1987,7 +1996,7 @@ classdef Platoon < handle
 %                         if isSoft
 %                             K{i,j}(abs(K{i,j})<0.000001*maxNorm) = 0;                       
 %                         else
-%                             if A(i+1,j+1)==0
+%                             if A(j+1,i+1)==0
 %                                 K{i,j} = zeros(3);
 %                             end
 %                         end

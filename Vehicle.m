@@ -66,7 +66,7 @@ classdef Vehicle < handle
             obj.platoonIndex = k;
             obj.vehicleIndex = i;
 
-            obj.vehicleParameters = parameters;                     %[mass,length,height1,height2]
+            obj.vehicleParameters = parameters;                     % [mass,length,height1,height2]
 
             obj.states = states;                                    % states of the i^{th} vehicle
             obj.desiredSeparation = desiredSeparation;              % need to track this signal (desired position,velocity and 0 acceleration for i^{th} vehicle)
@@ -398,6 +398,7 @@ classdef Vehicle < handle
             
         end
 
+        
         %% Parametrized Approach to Synthesize Local Controllers (while also assisting synthesis of global controllers)
         function [status,PVal,KVal,LVal,nuVal,rhoVal,gammaSqVal] = synthesizeLocalControllersParameterized(obj,errorDynamicsType,pVal)
             % Here we will synthesize the local controllers for local error
@@ -463,6 +464,9 @@ classdef Vehicle < handle
             KVal = value(K)   % This is \tilde{L}_{ii}
             LVal = KVal/PVal  % KVal is L and LVal is K in our paper. This LVal is the local controller gain \bar{L}_{ii}
             
+            R_i = inv(PVal)
+            obj.R_i = R_i;
+
             nuVal = value(nu);
             rhoVal = 1/value(rhoTilde);
             gammaSqVal = value(gammaSq);
@@ -1229,7 +1233,7 @@ classdef Vehicle < handle
             costCoefficient1 = 1;
             costCoefficient2 = 1; 
             costCoefficient3 = 1; 
-     
+            
             [statusL,PVal,KVal,LVal,nuVal,rhoVal,gammaSqLVal] = obj.synthesizeLocalControllersParameterized(2,pVal);
             if displayMasseges
                 disp(['Robust Stabilizing at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
@@ -1262,6 +1266,9 @@ classdef Vehicle < handle
             X_ii_12 = X_i_11\X_i_12;
             X_ii_21 = X_ii_12';
 
+            R_i = inv(PVal)
+            obj.R_i = R_i;
+
             obj.dataToBeDistributed.X = X_ii_12;
 
             null_ii = [1,1,1; 1,1,1; 0,0,0];
@@ -1276,8 +1283,8 @@ classdef Vehicle < handle
                 gammaSq_i = sdpvar(1,1);
                 
                 costFun0 = sum(sum(Q_ii.*cost_ii));
-
-                con0 = costFun0 >= 0.001;
+                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                con0 = costFun0 >= 0.007;
                 con1 = p_i >= 0;
 
 %                 DMat = [X_p_11, O; O, I];
@@ -1450,9 +1457,9 @@ classdef Vehicle < handle
 
                 con3_ii = Q_ii.*(null_ii==1)==O_n;
                 con3 = [con3, con3_ii];
-                
+                %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                 costFun0 = costFun0 + sum(sum(Q_ii.*cost_ii));
-                con0 = costFun0 >= 0.001;
+                con0 = costFun0 >= 0.007;
                 
                 if isSoft
                     cons = [con0,con1,con2,con3];
@@ -1912,6 +1919,21 @@ classdef Vehicle < handle
 
             end
         end
+
+
+        %% Comparison simulation 1 (using MPC)
+        % function outputArg = Comparison1MPC()
+        % 
+        % 
+        % end
+
+
+
+        %% Comparison simulation 1 (using PID)
+        % function outputArg = Comparison2PID()
+        % 
+        % 
+        % end
 
     end
 end
