@@ -17,6 +17,9 @@ classdef Platoon < handle
 
         K % controller gains obtained 
         R
+
+        % K sequence
+        KSequence
     end
     
     methods
@@ -450,10 +453,13 @@ classdef Platoon < handle
                     K{iInd,jInd} = K_ijVals{jInd};
                     K{jInd,iInd} = K_jiVals{jInd};
 
-                    %% We need to update K_{jj} values here!!!
+                    %% We need to update K_{jj} values here!!! K_{j0} = k_{j0} + k_{ji}
                     disp([' Local controller updated at j = ',num2str(j)])
                     obj.vehicles(jInd+1).localControllerGains1 = obj.vehicles(jInd+1).localControllerGains1 + K{jInd,iInd}(3,:);
                 end
+                obj.KSequence{iInd} = K;
+                disp(['Current K at i = ',num2str(iInd)])
+                disp(cell2mat(K))
         
                 if ~isStabilizable
                     break
@@ -676,10 +682,13 @@ classdef Platoon < handle
                     K{iInd,jInd} = K_ijVals{jInd};
                     K{jInd,iInd} = K_jiVals{jInd};
 
-                    %% We need to update K_{jj} values here!!!
+                    %% We need to update K_{jj} values here!!! K_{j0} = k_{j0} + k_{ji}
                     disp([' Local controller updated at j = ',num2str(j)])
                     obj.vehicles(jInd+1).localControllerGains1 = obj.vehicles(jInd+1).localControllerGains1 + K{jInd,iInd}(3,:);
                 end
+                obj.KSequence{iInd} = K;
+                disp(['Current K at i = ',num2str(iInd)])
+                disp(cell2mat(K))
         
                 if ~isRobustStabilizable
                     break
@@ -866,10 +875,13 @@ classdef Platoon < handle
                     K{iInd,jInd} = K_ijVals{jInd};
                     K{jInd,iInd} = K_jiVals{jInd};
 
-                    %% We need to update K_{jj} values here!!!
+                    %% We need to update K_{jj} values here!!! K_{j0} = k_{j0} + k_{ji}
                     disp([' Local controller updated at j = ',num2str(j)])
                     obj.vehicles(jInd+1).localControllerGains2 = obj.vehicles(jInd+1).localControllerGains2 + K{jInd,iInd}(3,:);
                 end
+                obj.KSequence{iInd} = K;
+                disp(['Current K at i = ',num2str(iInd)])
+                disp(cell2mat(K))
         
                 if ~isStabilizable
                     break
@@ -1079,6 +1091,9 @@ classdef Platoon < handle
                     disp([' Local controller updated at j = ',num2str(j)])
                     obj.vehicles(jInd+1).localControllerGains2 = obj.vehicles(jInd+1).localControllerGains2 + K{jInd,iInd}(3,:);
                 end
+                obj.KSequence{iInd} = K;
+                disp(['Current K at i = ',num2str(iInd)])
+                disp(cell2mat(K))
 
                 if gammaSq_iVal > gammaSqVal
                     gammaSqVal = gammaSq_iVal;
@@ -1313,10 +1328,13 @@ classdef Platoon < handle
                     K{iInd,jInd} = K_ijVals{jInd};
                     K{jInd,iInd} = K_jiVals{jInd};
 
-                    %% We need to update K_{jj} values here!!!
+                    %% We need to update K_{jj} values here!!! K_{j0} = k_{j0} + k_{ji}
                     disp([' Local controller updated at j = ',num2str(j)])
                     obj.vehicles(jInd+1).localControllerGains2 = obj.vehicles(jInd+1).localControllerGains2 + K{jInd,iInd}(3,:);
                 end
+                obj.KSequence{iInd} = K;
+                disp(['Current K at i = ',num2str(iInd)])
+                disp(cell2mat(K))
                 
                 % Update the gammaSq value
                 if gammaSq_iVal > gammaSqVal
