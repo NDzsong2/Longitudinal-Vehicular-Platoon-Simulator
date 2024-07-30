@@ -460,11 +460,11 @@ classdef Vehicle < handle
             sol = optimize(cons,costFun,solverOptions);
             status = sol.problem == 0; % sol.info;
         
-            PVal = value(P)   % This is the P_i value obtained from solving the local control synthesis
-            KVal = value(K)   % This is \tilde{L}_{ii}
-            LVal = KVal/PVal  % KVal is L and LVal is K in our paper. This LVal is the local controller gain \bar{L}_{ii}
+            PVal = value(P);   % This is the P_i value obtained from solving the local control synthesis
+            KVal = value(K);   % This is \tilde{L}_{ii}
+            LVal = KVal/PVal; % KVal is L and LVal is K in our paper. This LVal is the local controller gain \bar{L}_{ii}
             
-            R_i = inv(PVal)
+            R_i = inv(PVal);
             obj.R_i = R_i;
 
             nuVal = value(nu);
@@ -1266,7 +1266,7 @@ classdef Vehicle < handle
             X_ii_12 = X_i_11\X_i_12;
             X_ii_21 = X_ii_12';
 
-            R_i = inv(PVal)
+            R_i = inv(PVal);
             obj.R_i = R_i;
 
             obj.dataToBeDistributed.X = X_ii_12;

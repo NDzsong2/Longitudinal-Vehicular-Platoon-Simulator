@@ -15,7 +15,7 @@ classdef Network < handle
         cost
 
         % For plotting
-        graphics = [];
+       graphics = [];
 
     end
 

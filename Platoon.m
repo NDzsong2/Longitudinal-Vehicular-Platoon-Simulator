@@ -449,6 +449,10 @@ classdef Platoon < handle
                     jInd = previousSubsystems(j);
                     K{iInd,jInd} = K_ijVals{jInd};
                     K{jInd,iInd} = K_jiVals{jInd};
+
+                    %% We need to update K_{jj} values here!!!
+                    disp([' Local controller updated at j = ',num2str(j)])
+                    obj.vehicles(jInd+1).localControllerGains1 = obj.vehicles(jInd+1).localControllerGains1 + K{jInd,iInd}(3,:);
                 end
         
                 if ~isStabilizable
@@ -671,6 +675,10 @@ classdef Platoon < handle
                     jInd = previousSubsystems(j);
                     K{iInd,jInd} = K_ijVals{jInd};
                     K{jInd,iInd} = K_jiVals{jInd};
+
+                    %% We need to update K_{jj} values here!!!
+                    disp([' Local controller updated at j = ',num2str(j)])
+                    obj.vehicles(jInd+1).localControllerGains1 = obj.vehicles(jInd+1).localControllerGains1 + K{jInd,iInd}(3,:);
                 end
         
                 if ~isRobustStabilizable
@@ -857,6 +865,10 @@ classdef Platoon < handle
                     jInd = previousSubsystems(j);
                     K{iInd,jInd} = K_ijVals{jInd};
                     K{jInd,iInd} = K_jiVals{jInd};
+
+                    %% We need to update K_{jj} values here!!!
+                    disp([' Local controller updated at j = ',num2str(j)])
+                    obj.vehicles(jInd+1).localControllerGains2 = obj.vehicles(jInd+1).localControllerGains2 + K{jInd,iInd}(3,:);
                 end
         
                 if ~isStabilizable
@@ -1062,6 +1074,10 @@ classdef Platoon < handle
                     jInd = previousSubsystems(j);
                     K{iInd,jInd} = K_ijVals{jInd};
                     K{jInd,iInd} = K_jiVals{jInd};
+
+                    %% We need to update K_{j0} values here!!! K_{j0} = k_{j0} + k_{ji}
+                    disp([' Local controller updated at j = ',num2str(j)])
+                    obj.vehicles(jInd+1).localControllerGains2 = obj.vehicles(jInd+1).localControllerGains2 + K{jInd,iInd}(3,:);
                 end
 
                 if gammaSq_iVal > gammaSqVal
@@ -1296,6 +1312,10 @@ classdef Platoon < handle
                     jInd = previousSubsystems(j);
                     K{iInd,jInd} = K_ijVals{jInd};
                     K{jInd,iInd} = K_jiVals{jInd};
+
+                    %% We need to update K_{jj} values here!!!
+                    disp([' Local controller updated at j = ',num2str(j)])
+                    obj.vehicles(jInd+1).localControllerGains2 = obj.vehicles(jInd+1).localControllerGains2 + K{jInd,iInd}(3,:);
                 end
                 
                 % Update the gammaSq value
