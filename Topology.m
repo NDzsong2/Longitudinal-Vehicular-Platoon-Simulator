@@ -1,4 +1,4 @@
-classdef Topology < handle
+classdef Topology < handle 
     %UNTITLED5 Summary of this class goes here
     %   Detailed explanation goes here
 
@@ -34,6 +34,81 @@ classdef Topology < handle
             obj.graph = digraph(startNodes,endNodes,weights,nodeNames);
             obj.loadNeighborSets();
                         
+        end
+
+        function newObj = copy(obj)
+            % Create a new object of the same class
+            newObj = Topology(obj.numOfNodes, obj.startNodes, obj.endNodes, obj.graph.Nodes.Name);
+
+            % Copy each property
+            newObj.startNodes = obj.startNodes;
+            newObj.endNodes = obj.endNodes;
+            newObj.numOfNodes = obj.numOfNodes;
+            newObj.graph = digraph(obj.graph.Edges, obj.graph.Nodes);
+            newObj.inNeighbors = obj.inNeighbors;
+            newObj.outNeighbors = obj.outNeighbors;
+        end
+
+        % function newTopology = removeNodes(obj,nodeIndices)
+        %     newTopology = copy(obj);
+        %     numOfNodes = 0;
+        %     for i = 1:1:obj.numOfNodes
+        %         if ~any(nodeIndices == i)
+        %             nodeNames{i} = num2str(i-1);
+        %             numOfNodes = numOfNodes + 1;
+        %         end
+        %     end
+        % 
+        %     startNodes = [];
+        %     endNodes = [];
+        %     for i = 1:1:length(obj.startNodes)
+        %         if ~any(nodeIndices == obj.startNodes(i)) && ~any(nodeIndices == obj.endNodes(i)) 
+        %             startNodes = [startNodes, obj.startNodes(i)];
+        %             endNodes = [endNodes, obj.endNodes(i)];
+        %         end
+        %     end
+        % 
+        %     newTopology.startNodes = startNodes;
+        %     newTopology.endNodes = endNodes; 
+        %     newTopology.numOfNodes = numOfNodes;
+        %     weights = ones(length(startNodes),1);
+        % 
+        %     % Here, we need the digraph for further compute the graph matrices
+        %     newTopology.graph = digraph(startNodes,endNodes,weights,nodeNames);
+        %     newTopology.loadNeighborSets();
+        % end
+
+        function obj = removeNodes(obj, nodeIndices)
+                       
+            % Remove the nodes from the graph
+            for i = 1:length(nodeIndices)
+                obj.graph = rmnode(obj.graph, nodeIndices(i));
+            end
+            
+            % Create a mapping from old indices to new indices
+            oldIndices = setdiff(1:(obj.numOfNodes + length(nodeIndices)), nodeIndices);
+            newIndices = 1:obj.numOfNodes;
+            indexMapping = containers.Map(oldIndices, newIndices);
+            
+            % Update the start and end nodes using the mapping
+            startNodes = [];
+            endNodes = [];
+            startNodesCell = obj.graph.Edges.EndNodes(:, 1)';
+            endNodesCell = obj.graph.Edges.EndNodes(:, 2)';
+            for i = 1:length(startNodesCell)
+                startNodes = [startNodes, indexMapping(eval(startNodesCell{i}) + 1)];
+                endNodes = [endNodes, indexMapping(eval(endNodesCell{i}) + 1)];
+            end
+            obj.startNodes = startNodes;
+            obj.endNodes = endNodes;
+
+            
+            % Update the number of nodes
+            obj.numOfNodes = numnodes(obj.graph);
+            
+
+            % Reload the neighbor sets
+            obj.loadNeighborSets();
         end
 
         function [startNodes,endNodes,nodeNames] = generateAUniformTopology(obj,n_k)

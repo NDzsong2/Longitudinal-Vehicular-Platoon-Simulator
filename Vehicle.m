@@ -87,7 +87,32 @@ classdef Vehicle < handle
             
             obj.inNeighbors = [];
             obj.outNeighbors = [];
+
             
+            
+        end
+
+        
+        function newObj = copy(obj)
+            % Create a new object of the same class
+            newObj = Vehicle(obj.platoonIndex, obj.vehicleIndex, obj.vehicleParameters, obj.states, obj.desiredSeparation, obj.noiseMean, obj.noiseStd);
+            
+            % Copy each property
+            propertiesList = properties(obj);
+            for i = 1:length(propertiesList)
+                propName = propertiesList{i};
+                if isa(obj.(propName), 'handle')
+                    % Recursively copy handle objects
+                    newObj.(propName) = obj.(propName).copy();
+                else
+                    % For value types, directly assign the property
+                    newObj.(propName) = obj.(propName);
+                end
+            end
+
+            if ~isempty(newObj.graphics)
+                newObj.graphics = [];
+            end
         end
 
 

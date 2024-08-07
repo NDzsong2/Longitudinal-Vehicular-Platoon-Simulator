@@ -117,25 +117,23 @@ classdef Platoon < handle
             % Remove vehicles from the platoon
             for i = 1:length(vehicleIndices)
                 iInd = vehicleIndices(i);
+                obj.vehicles(iInd) = [];
                 % Remove controller gains
                 if ~isempty(obj.K)
-                    % Re-adjust local controllers before removing iInd-th column
+                    obj.K(iInd,:) = [];
+                    
                     for jInd=1:size(obj.K,1)
                         K_ji = obj.K{jInd,iInd};
                         %We need to update K_{j0} values here!!! K_{j0} = k_{j0} - k_{ji}
                         if errorDynamicsType == 1
-                            obj.vehicles(jInd+1).localControllerGains1 = obj.vehicles(jInd+1).localControllerGains1 + K_ji(3,:);
+                            obj.vehicles(jInd+1).localControllerGains2 = obj.vehicles(jInd+1).localControllerGains2 + K{jInd,iInd}(3,:);
                         elseif errorDynamicsType == 2
-                            obj.vehicles(jInd+1).localControllerGains2 = obj.vehicles(jInd+1).localControllerGains2 + K_ji(3,:);
+                        
                         end
                     end
-                    % Removing iInd-th row
-                    obj.K(iInd,:) = [];
-                    % Removing iInd-th column
                     obj.K(:,iInd) = [];
+
                 end
-                %Remove Vehicle
-                obj.vehicles(iInd) = [];
             end
         
             

@@ -41,7 +41,83 @@ classdef Network < handle
 
         end
 
-           
+        function newObj = copy(obj)
+            % Create a new object of the same class without using the constructor
+            % Initialize arrays for constructor arguments
+            parameters = cell(1, obj.numOfPlatoons);
+            states = cell(1, obj.numOfPlatoons);
+            desiredSeparation = cell(1, obj.numOfPlatoons);
+            noiseMean = cell(1, obj.numOfPlatoons);
+            noiseStd = cell(1, obj.numOfPlatoons);
+            
+            for k = 1:obj.numOfPlatoons
+                platoon = obj.platoons(k);
+                numVehicles = platoon.numOfVehicles;
+                
+                parameters{k} = zeros(size(platoon.vehicles(1).vehicleParameters, 1), numVehicles);
+                states{k} = zeros(size(platoon.vehicles(1).states, 1), numVehicles);
+                desiredSeparation{k} = zeros(size(platoon.vehicles(1).desiredSeparation, 1), numVehicles);
+                noiseMean{k} = zeros(size(platoon.vehicles(1).noiseMean, 1), numVehicles);
+                noiseStd{k} = zeros(size(platoon.vehicles(1).noiseStd, 1), numVehicles);
+                
+                for i = 1:numVehicles
+                    vehicle = platoon.vehicles(i);
+                    parameters{k}(:, i) = vehicle.vehicleParameters;
+                    states{k}(:, i) = vehicle.states;
+                    desiredSeparation{k}(:, i) = vehicle.desiredSeparation;
+                    noiseMean{k}(:, i) = vehicle.noiseMean;
+                    noiseStd{k}(:, i) = vehicle.noiseStd;
+                end
+            end
+            
+            % Create a new object using the constructor with the necessary parameters
+            newObj = Network(obj.networkIndex, obj.numOfPlatoons, obj.numOfVehicles, parameters, states, desiredSeparation, noiseMean, noiseStd);
+            
+            
+            % Manually assign all properties
+            propertiesList = properties(obj);
+            for i = 1:length(propertiesList)
+                propName = propertiesList{i};
+                if isa(obj.(propName), 'handle')
+                    if isobject(obj.(propName)) && numel(obj.(propName)) > 1
+                        % If the property is an array of objects, copy each element
+                        for j = 1:numel(obj.(propName))
+                            newObj.(propName)(j) = obj.(propName)(j).copy();
+                        end
+                    else
+                        % Recursively copy handle objects
+                        newObj.(propName) = obj.(propName).copy();
+                    end
+                else
+                    % For value types, directly assign the property
+                    newObj.(propName) = obj.(propName);
+                end
+            end
+            
+            % Copy the platoons array
+            for i = 1:obj.numOfPlatoons
+                newObj.platoons(i) = obj.platoons(i).copy();
+            end
+
+            if ~isempty(newObj.graphics)
+                newObj.graphics = [];
+            end
+        end
+
+        function obj = removeVehicles(obj, platoonIndex, vehicleIndices, errorDynamicsType)
+            % Remove vehicles given their indices and the platoon index
+            if platoonIndex > obj.numOfPlatoons || platoonIndex < 1
+                disp('Invalid platoon index');
+            end
+            
+            % Remove vehicles using the method in the Platoon class
+            obj.platoons(platoonIndex) = obj.platoons(platoonIndex).removeVehicles(vehicleIndices,errorDynamicsType);
+
+            % Update the number of vehicles in the network
+            obj.numOfVehicles(platoonIndex) = obj.platoons(platoonIndex).numOfVehicles;
+
+        end
+
         function outputArg = drawNetwork(obj,figNum)
             figure(figNum); hold on;
             
