@@ -116,7 +116,7 @@ classdef Platoon < handle
             
             % Remove vehicles from the platoon
             for i = 1:length(vehicleIndices)
-                iInd = vehicleIndices(i);
+                iInd = vehicleIndices(i)-1;
                 % Remove controller gains
                 if ~isempty(obj.K)
                     % Re-adjust local controllers before removing iInd-th column
@@ -135,7 +135,7 @@ classdef Platoon < handle
                     obj.K(:,iInd) = [];
                 end
                 %Remove Vehicle
-                obj.vehicles(iInd) = [];
+                obj.vehicles(iInd+1) = [];
             end
         
             
