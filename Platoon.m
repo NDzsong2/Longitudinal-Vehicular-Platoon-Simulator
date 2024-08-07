@@ -251,7 +251,24 @@ classdef Platoon < handle
                 startPos = obj.vehicles(startVehicleIndex).states(1) - obj.vehicles(startVehicleIndex).vehicleParameters(2)/2;
                 endPos = obj.vehicles(endVehicleIndex).states(1) - obj.vehicles(endVehicleIndex).vehicleParameters(2)/2;
                 midPos = (startPos + endPos)/2;
-                midPointHeight = -5*sign(startPos-endPos)+0.05*abs(startPos-endPos)-0.5*(startPos<endPos); % 4
+
+                % midPointHeight = -5*sign(startPos-endPos)+0.05*abs(startPos-endPos)-0.5*(startPos<endPos); % 4
+                % Simplify mid-point height calculation
+                % Define baseline deviation ranges
+                minBaselineDeviation = 1; % Minimum deviation from the baseline
+                maxBaselineDeviation = 5; % Maximum deviation from the baseline
+                % Calculate mid-point height deviation
+                directionSign = sign(startPos - endPos);
+                distance = abs(startPos - endPos);
+    
+                % Scale the deviation within the specified range
+                deviationRange = maxBaselineDeviation - minBaselineDeviation;
+                scaledDeviation = (deviationRange / 100) * distance + minBaselineDeviation;
+                
+                 % Adjust mid-point height based on direction and vehicle height
+                vehicleHeightCorrection = 1.5 * (startPos > endPos) * directionSign;
+                midPointHeight = -directionSign * scaledDeviation + vehicleHeightCorrection;
+                
 
                 startPosY = obj.vehicles(startVehicleIndex).vehicleParameters(2)*3/8;
                 endPosY = obj.vehicles(endVehicleIndex).vehicleParameters(2)*3/8;
@@ -265,17 +282,17 @@ classdef Platoon < handle
                 yy = spline(x,y,xx);
                 obj.graphics1(i) = plot(xx,yy,'-b');
             
-                % Plotting the arrowHead (polyshape)
+                % Plotting the arrowhead (polyshape)
                 polyPosX = midPos;
                 polyPosY = midPointHeight;
                 polySize = 0.3;
-                polyVertX = [-0.5,1,-0.5];
-                polyVertY = [0.5,0,-0.5];
-                if polyPosY < 0
+                polyVertX = [-0.5, 1, -0.5];
+                polyVertY = [0.5, 0, -0.5];
+                if startPos > endPos
                     polyVertX = -polyVertX;
                 end
-                arrowHead = polyshape(polyPosX+polySize*polyVertX,polyPosY+polySize*polyVertY);
-                obj.graphics2(i) = plot(arrowHead,'EdgeColor','k','FaceColor','b');
+                arrowHead = polyshape(polyPosX + polySize * polyVertX, polyPosY + polySize * polyVertY);
+                obj.graphics2(i) = plot(arrowHead, 'EdgeColor', 'k', 'FaceColor', 'b');
             end            
         end
 
@@ -311,8 +328,26 @@ classdef Platoon < handle
                     startPos = obj.vehicles(startVehicleIndex).states(1) - obj.vehicles(startVehicleIndex).vehicleParameters(2)/2;
                     endPos = obj.vehicles(endVehicleIndex).states(1) - obj.vehicles(endVehicleIndex).vehicleParameters(2)/2;
                     midPos = (startPos + endPos)/2;
-                    midPointHeight = -5*sign(startPos-endPos)+0.05*abs(startPos-endPos)-0.5*(startPos<endPos); % 4
+
+                    % midPointHeight = -5*sign(startPos-endPos)+0.05*abs(startPos-endPos)-0.5*(startPos<endPos); % 4
                     
+                    % Simplify mid-point height calculation
+                    % Define baseline deviation ranges
+                    minBaselineDeviation = 1; % Minimum deviation from the baseline
+                    maxBaselineDeviation = 5; % Maximum deviation from the baseline
+                    % Calculate mid-point height deviation
+                    directionSign = sign(startPos - endPos);
+                    distance = abs(startPos - endPos);
+        
+                    % Scale the deviation within the specified range
+                    deviationRange = maxBaselineDeviation - minBaselineDeviation;
+                    scaledDeviation = (deviationRange / 100) * distance + minBaselineDeviation;
+                    
+                     % Adjust mid-point height based on direction and vehicle height
+                    vehicleHeightCorrection = 1.5 * (startPos > endPos) * directionSign;
+                    midPointHeight = -directionSign * scaledDeviation + vehicleHeightCorrection;
+                    
+
                     startPosY = obj.vehicles(startVehicleIndex).vehicleParameters(2)*3/8;
                     endPosY = obj.vehicles(endVehicleIndex).vehicleParameters(2)*3/8;
                     % obj.graphics1(i) = plot([startPos,midPos,endPos],[0,4,0]+[startPosY,0,endPosY],'-b');
@@ -326,17 +361,17 @@ classdef Platoon < handle
                     yy = spline(x,y,xx);
                     obj.graphics1(i) = plot(xx,yy,'-b');
                 
-                    % Plotting the arrowHead (polyshape)
+                    % Plotting the arrowhead (polyshape)
                     polyPosX = midPos;
                     polyPosY = midPointHeight;
                     polySize = 0.3;
-                    polyVertX = [-0.5,1,-0.5];
-                    polyVertY = [0.5,0,-0.5];
-                    if polyPosY < 0
+                    polyVertX = [-0.5, 1, -0.5];
+                    polyVertY = [0.5, 0, -0.5];
+                    if startPos > endPos
                         polyVertX = -polyVertX;
                     end
-                    arrowHead = polyshape(polyPosX+polySize*polyVertX,polyPosY+polySize*polyVertY);
-                    obj.graphics2(i) = plot(arrowHead,'EdgeColor','k','FaceColor','b');
+                    arrowHead = polyshape(polyPosX + polySize * polyVertX, polyPosY + polySize * polyVertY);
+                    obj.graphics2(i) = plot(arrowHead, 'EdgeColor', 'k', 'FaceColor', 'b');
                 end
             end            
         end
