@@ -291,13 +291,13 @@ classdef Network < handle
                 else                                % Error dynamics formulation II
                     if isCentralized == 1 && ~isDSS % Centralized & Not DSS
                         if isOnlyStabilizing == 1   % Only Stabilizing
-                            status = obj.platoons(k).centralizedStabilizingControllerSynthesis2(nuBar,rhoBar);
+                            status = obj.platoons(k).centralizedStabilizingControllerSynthesis2(pVals(k,:));
                         else                        % Robust
                             status = obj.platoons(k).centralizedRobustControllerSynthesis2(pVals(k,:)); % nuBar,rhoBar,gammaSqBar are no longer needed
                         end
                     elseif ~isCentralized == 1 && ~isDSS    % Decentralized & Not DSS
                         if isOnlyStabilizing == 1           % Only Stabilizing
-                            status = obj.platoons(k).decentralizedStabilizingControllerSynthesis2(nuBar,rhoBar);
+                            status = obj.platoons(k).decentralizedStabilizingControllerSynthesis2(pVals(k,:));
                         else                                % Robust
                             status = obj.platoons(k).decentralizedRobustControllerSynthesis2(pVals(k,:));
                         end
@@ -325,5 +325,183 @@ classdef Network < handle
             end
         end
 
+
+        %%% Solution evaluation
+
+        function [comCost,robCost] = evaluateTopology(obj,showPlots)
+            % Update the states and plot them in real time as an animation
+            dt = 0.01;
+            tMax = 20; 
+            tArray = 0:dt:tMax;
+            timeLength = length(tArray);
+            
+            % Leader's trajectory specification
+            tVals = tMax*[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1];     % Special time instants (inbetween which the acceleration is constant)
+            vVals = [0, 10, 20, 20, 30, 30, 20, 10, 20, 30, 30];   % Velocities to be achived at these time instants
+            obj.generateLeadersControlProfiles(dt,tVals,vVals);
+
+            % Updating the platoons
+            for t = tArray
+            
+                % Use this update function to achieve the update of the entire program
+                obj.update(t,dt);
+                
+            end
+            
+            robCost = obj.cost;
+
+            comCost = 0;
+            for k = 1:1:obj.numOfPlatoons
+                comCost = comCost + obj.platoons(k).evaluateTopology();
+            end
+            
+            if showPlots
+                % Plot the state histories
+                for k = 1:1:obj.numOfPlatoons
+                    C = linspecer(obj.platoons(k).numOfVehicles(1));
+
+                    % figure
+                    % % Subplot 1: Position History
+                    % % subplot(2,2,1)
+                    % axes('NextPlot', 'replacechildren', 'ColorOrder', C);
+                    % hold on
+                    % plot(tArray, obj.platoons(k).vehicles(1).stateHistory(1,:)', '--', 'LineWidth', 2);
+                    % for i = 2:1:obj.platoons(k).numOfVehicles
+                    %     plot(tArray, obj.platoons(k).vehicles(i).stateHistory(1,:)', '-', 'LineWidth', 2);
+                    % end
+                    % set(gca, 'FontSize', 16);
+                    % xlabel('$t$/time(s)', 'Interpreter', 'latex', 'FontSize', 24);
+                    % ylabel('$x(t)$/position(m)', 'Interpreter', 'latex', 'FontSize', 24);
+                    % xlim([0 tMax]);
+                    % ylim([-80 300]);
+                    % grid on 
+                    % 
+                    figure
+                    % Subplot 2: Position Error History
+                    % subplot(2,2,2)
+                    axes('NextPlot', 'replacechildren', 'ColorOrder', C);
+                    hold on
+                    plot(tArray, zeros(1, timeLength), '--', 'LineWidth', 2);
+                    for i = 2:1:obj.platoons(k).numOfVehicles
+                        plot(tArray, obj.platoons(k).vehicles(i).errorHistory(1,:)', '-', 'LineWidth', 2);
+                    end
+                    set(gca, 'FontSize', 16);
+                    xlabel('$t$/time(s)', 'Interpreter', 'latex', 'FontSize', 24);
+                    ylabel('$\tilde{x}(t)$/position-error(m)', 'Interpreter', 'latex', 'FontSize', 24);
+                    xlim([0 tMax]);
+                    ylim([-2 2]);
+                    grid on 
+                
+                    figure
+                    % Subplot 3: Velocity History
+                    % subplot(2,2,3)
+                    axes('NextPlot', 'replacechildren', 'ColorOrder', C);
+                    hold on
+                    plot(tArray, obj.platoons(k).vehicles(1).stateHistory(2,:)', '--', 'LineWidth', 2);
+                    for i = 2:1:obj.platoons(k).numOfVehicles
+                        plot(tArray, obj.platoons(k).vehicles(i).stateHistory(2,:)', '-', 'LineWidth', 2);
+                    end
+                    set(gca, 'FontSize', 16);
+                    xlabel('$t$/time(s)', 'Interpreter', 'latex', 'FontSize', 24);
+                    ylabel('$v(t)$/velocity(m/s)', 'Interpreter', 'latex', 'FontSize', 24);
+                    xlim([0 tMax]);
+                    ylim([-5 45]);
+                    grid on 
+                
+                    figure
+                    % Subplot 4: Velocity Error History
+                    % subplot(2,2,4)
+                    axes('NextPlot', 'replacechildren', 'ColorOrder', C);
+                    hold on
+                    plot(tArray, zeros(1, timeLength), '--', 'LineWidth', 2, 'DisplayName', ['Veh. ', num2str(1)]);
+                    for i = 2:1:obj.platoons(k).numOfVehicles
+                        plot(tArray, obj.platoons(k).vehicles(i).errorHistory(2,:)', '-', 'LineWidth', 2, 'DisplayName', ['Veh. ', num2str(i)]);
+                    end
+                    set(gca, 'FontSize', 16);
+                    xlabel('$t$/time(s)', 'Interpreter', 'latex', 'FontSize', 24);
+                    ylabel('$\tilde{v}(t)$/velocity-error(m/s)', 'Interpreter', 'latex', 'FontSize', 24);
+                    % legend('Location', 'northeast', 'FontSize', 20, 'NumColumns', 2, 'Orientation', 'horizontal');
+                    xlim([0 tMax]);
+                    ylim([-3 3]);
+                    grid on 
+                end
+            end
+
+
+            % % Plot the state histories
+            % for k = 1:1:obj.numOfPlatoons
+            %     C = linspecer(obj.platoons(k).numOfVehicles(1));
+            %     figure
+            % 
+            %     subplot(2,2,1)
+            %     axes('NextPlot', 'replacechildren', 'ColorOrder',C);
+            %     hold on
+            %     plot(tArray,obj.platoons(k).vehicles(1).stateHistory(1,:)','--',LineWidth=2);
+            %     for i = 2:1:obj.platoons(k).numOfVehicles
+            %         plot(tArray,obj.platoons(k).vehicles(i).stateHistory(1,:)','-',LineWidth=2);
+            %     end
+            %     set(gca,fontsize=16);
+            %     xlabel('$t$/time(s)','Interpreter','latex',fontsize=24)
+            %     ylabel('$x(t)$/position(m)','Interpreter','latex',fontsize=24)
+            %     % legend(Location="eastoutside")
+            %     xlim([0 10]);
+            %     ylim([-80 300]);
+            %     grid on 
+            % 
+            % 
+            %     % Plot the location error histories
+            %     subplot(2,2,2)
+            %     axes('NextPlot','replacechildren', 'ColorOrder',C);
+            %     hold on
+            %     plot(tArray,zeros(1,timeLength),'--',LineWidth=2);
+            %     for i = 2:1:obj.platoons(k).numOfVehicles
+            %         plot(tArray,obj.platoons(k).vehicles(i).errorHistory(1,:)','-',LineWidth=2);
+            %     end
+            %     set(gca,fontsize=16);
+            %     xlabel('$t$/time(s)','Interpreter','latex',fontsize=24)
+            %     ylabel('$\tilde{x}(t)$/position-error(m)','Interpreter','latex',fontsize=24)
+            %     % legend(Location="eastoutside")
+            %     xlim([0 10]);
+            %     ylim([-1 2]);
+            %     grid on 
+            % 
+            % 
+            %     subplot(2,2,3)
+            %     axes('NextPlot','replacechildren', 'ColorOrder',C);
+            %     hold on
+            %     plot(tArray,obj.platoons(k).vehicles(1).stateHistory(2,:)','--',LineWidth=2);
+            %     for i = 2:1:obj.platoons(k).numOfVehicles
+            %         plot(tArray,obj.platoons(k).vehicles(i).stateHistory(2,:)','-',LineWidth=2);
+            %     end
+            %     set(gca,fontsize=16);
+            %     xlabel('$t$/time(s)','Interpreter','latex',fontsize=24)
+            %     ylabel('$v(t)$/velocity(m/s)','Interpreter','latex',fontsize=24)
+            %     % legend(Location="eastoutside")
+            %     xlim([0 10]);
+            %     ylim([-5 45]);
+            %     grid on 
+            % 
+            % 
+            % 
+            %     subplot(2,2,4)
+            %     axes('NextPlot','replacechildren', 'ColorOrder',C);
+            %     hold on
+            %     plot(tArray,zeros(1,timeLength),'--',LineWidth=2,DisplayName=['Veh. ',num2str(1)]);
+            %     for i = 2:1:obj.platoons(k).numOfVehicles
+            %         plot(tArray,obj.platoons(k).vehicles(i).errorHistory(2,:)','-',LineWidth=2,DisplayName=['Veh. ',num2str(i)]);
+            %     end
+            %     set(gca,fontsize=16);
+            %     xlabel('$t$/time(s)','Interpreter','latex',fontsize=24)
+            %     ylabel('$\tilde{v}(t)$/velocity-error(m/s)','Interpreter','latex',fontsize=24)
+            %     legend(Location="northeast",FontSize=20,NumColumns=2,Orientation="horizontal")
+            %     xlim([0 10]);
+            %     ylim([-1.5 2]);
+            %     grid on 
+            % 
+            % 
+            % 
+            % end
+
+        end
     end
 end

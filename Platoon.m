@@ -597,7 +597,7 @@ classdef Platoon < handle
             for i = 1:1:length(indexing)
                 iInd = indexing(i);
                 previousSubsystems = indexing(1:i-1);                
-                [isStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd).stabilizingControllerSynthesis1(previousSubsystems, obj.vehicles, nuBar, rhoBar);
+                [isStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd+1).stabilizingControllerSynthesis1(previousSubsystems, obj.vehicles, nuBar, rhoBar);
 
                 K{iInd,iInd} = K_ii;
                 for j = 1:1:length(previousSubsystems)
@@ -610,8 +610,8 @@ classdef Platoon < handle
                     obj.vehicles(jInd+1).localControllerGains1 = obj.vehicles(jInd+1).localControllerGains1 + K{jInd,iInd}(3,:);
                 end
                 obj.KSequence{iInd} = K;
-                disp(['Current K at i = ',num2str(iInd)])
-                disp(cell2mat(K))
+                % disp(['Current K at i = ',num2str(iInd)])
+                % disp(cell2mat(K))
         
                 if ~isStabilizable
                     break
@@ -827,7 +827,7 @@ classdef Platoon < handle
             for i = 1:1:length(indexing)
                 iInd = indexing(i);
                 previousSubsystems = indexing(1:i-1);                
-                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd).robustControllerSynthesis1(previousSubsystems, obj.vehicles, nuBar, rhoBar, gammaSqBar);
+                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd+1).robustControllerSynthesis1(previousSubsystems, obj.vehicles, nuBar, rhoBar, gammaSqBar);
 
                 K{iInd,iInd} = K_ii;
                 for j = 1:1:length(previousSubsystems)
@@ -863,7 +863,7 @@ classdef Platoon < handle
         %% Stabilizing Controller Synthesis Using Error Dynamics Formulation II
 
         % Centralized Stabilizing Controller Synthesis (Error Dynamics II) 
-        function status = centralizedStabilizingControllerSynthesis2(obj,nuBar,rhoBar)
+        function status = centralizedStabilizingControllerSynthesis2(obj,pVals)
             % This is a very simple stabilizing controller synthesized
             % based on the error dynamics formulation 2.
 
@@ -872,13 +872,20 @@ classdef Platoon < handle
             
             % Whether to use a soft or hard graph constraint
             isSoft = 1;
-            normType = 2;
-            
+            % normType = 2;
+            minCostVal = 0.004;
+
+
             % Load local controllers/passivity indices
-            for i = 1:1:N
-                status = obj.vehicles(i+1).synthesizeLocalControllers(2,nuBar,rhoBar);
-            end            
+            % for i = 1:1:N
+            %     obj.vehicles(i+1).synthesizeLocalControllers(2,nuBar,rhoBar);
+            % end            
             
+            for i = 1:1:N
+                p_i = pVals(i);
+                obj.vehicles(i+1).synthesizeLocalControllersParameterized(2,p_i);
+            end
+
             % Creating the adgacency matrix, null matrix and cost matrix
             G = obj.topology.graph;
             A = adjacency(G);
@@ -889,16 +896,16 @@ classdef Platoon < handle
                         if A(j+1,i+1)==1
                             adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
                             nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
-                            costMatBlock{i,j} = 0.01*[0,0,0; 0,0,0; 1,1,1];
+                            costMatBlock{i,j} = 1*[0,0,0; 0,0,0; 1,1,1];
                         else
                             adjMatBlock{i,j} = [0,0,0; 0,0,0; 0,0,0];
                             nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
-                            costMatBlock{i,j} = 1*[0,0,0; 0,0,0; 1,1,1];
+                            costMatBlock{i,j} = (20/N)*abs(i-j)*[0,0,0; 0,0,0; 1,1,1];
                         end
                     else
                         adjMatBlock{i,j} = [0,0,0; 0,0,0; 1,1,1];
                         nullMatBlock{i,j} = [1,1,1; 1,1,1; 0,0,0];
-                        costMatBlock{i,j} = 1*[0,0,0; 0,0,0; 1,1,1];
+                        costMatBlock{i,j} = 0*[0,0,0; 0,0,0; 1,1,1];
                     end
                 end 
             end
@@ -931,11 +938,14 @@ classdef Platoon < handle
             X_21 = X_12';
             
             % Objective Function
-            costFun = norm(Q.*costMatBlock,normType) + 0*norm(Q.*nullMatBlock,normType);
+            % costFun = norm(Q.*costMatBlock,normType) + 0*norm(Q.*nullMatBlock,normType);
             
-            % Budget Constraints
-            % con01 = costFun <= 1;
-            
+            costFun0 = sum(sum(Q.*costMatBlock));
+            % costFun0 = norm(Q.*costMatBlock,2);
+
+            % Minimum Budget Constraints
+            con0 = costFun0 >= minCostVal;
+
             % Basic Constraints
             con1 = P >= 0;
             %%con2 = trace(P) == 1;
@@ -943,20 +953,20 @@ classdef Platoon < handle
             DMat = [X_p_11];
             MMat = [Q];
             ThetaMat = [-X_21*Q-Q'*X_12-X_p_22];
-            con3 = [DMat, MMat; MMat', ThetaMat] >= 0;
+            con2 = [DMat, MMat; MMat', ThetaMat] >= 0;
             
             % Structural constraints
-            con4 = Q.*(nullMatBlock==1)==O;  % Structural limitations (due to the format of the control law)
-            con5 = Q.*(adjMatBlock==0)==O;  % Graph structure : hard constraint
+            con3 = Q.*(nullMatBlock==1)==O;  % Structural limitations (due to the format of the control law)
+            con4 = Q.*(adjMatBlock==0)==O;  % Graph structure : hard constraint
             
             
             % Total Cost and Constraints
             if isSoft
-                cons = [con1,con3,con4]; % Without the hard graph constraint con7
-                costFun = 1*costFun; % soft 
+                cons = [con0,con1,con2,con3]; % Without the hard graph constraint con7
+                costFun = 1*costFun0; % soft 
             else
-                cons = [con1,con3,con4,con5]; % With the hard graph constraint con7
-                costFun = 1*costFun; % hard (same as soft)
+                cons = [con0,con1,con2,con3,con4]; % With the hard graph constraint con7
+                costFun = 1*costFun0; % hard (same as soft)
             end
             
             sol = optimize(cons,[costFun],solverOptions);
@@ -994,13 +1004,17 @@ classdef Platoon < handle
                 for j=1:1:N
                     if i~=j
                         if isSoft
-                            K{i,j}(abs(K{i,j})<0.000001*maxNorm) = 0;                       
+                            K{i,j}(abs(K{i,j})<0.0001*maxNorm) = 0;                       
                         else
                             if A(j+1,i+1)==0
                                 K{i,j} = zeros(3);
                             end
                         end
-                    end        
+                    end
+
+                    K_ijMax = max(abs(K{i,j}(:)));
+                    K{i,j}(abs(K{i,j})<0.01*K_ijMax) = 0;
+
                 end
             end
       
@@ -1012,16 +1026,16 @@ classdef Platoon < handle
         
 
         % Decentralized Stabilizing Controller Synthesis (Error Dynamics II)
-        function status = decentralizedStabilizingControllerSynthesis2(obj,nuBar,rhoBar)
+        function status = decentralizedStabilizingControllerSynthesis2(obj,pVals)
+            
+            N = length(obj.vehicles)-1;
+            indexing = 1:N; % Lets use the default indexin scheme
+            isSoft = 1;
 
-            if isempty(indexing)
-                indexing = [1:1:(length(obj.vehicles)-1)];
-            end
-        
             for i = 1:1:length(indexing)
                 iInd = indexing(i);
                 previousSubsystems = indexing(1:i-1);                
-                [isStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd).stabilizingControllerSynthesis2(previousSubsystems, obj.vehicles, nuBar, rhoBar);
+                [isStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd+1).stabilizingControllerSynthesis2(previousSubsystems, obj.vehicles, pVals(iInd));
 
                 K{iInd,iInd} = K_ii;
                 for j = 1:1:length(previousSubsystems)
@@ -1034,8 +1048,8 @@ classdef Platoon < handle
                     obj.vehicles(jInd+1).localControllerGains2 = obj.vehicles(jInd+1).localControllerGains2 + K{jInd,iInd}(3,:);
                 end
                 obj.KSequence{iInd} = K;
-                disp(['Current K at i = ',num2str(iInd)])
-                disp(cell2mat(K))
+                % disp(['Current K at i = ',num2str(iInd)]);
+                % disp(cell2mat(K));
         
                 if ~isStabilizable
                     break
@@ -1043,12 +1057,42 @@ classdef Platoon < handle
             end
         
             if isStabilizable
+                disp(['Global Synthesis Success'])
                 status = 1;
+                
+                maxNorm = 0;
+                for i = 1:1:N
+                    for j = 1:1:N
+                        normVal = max(max(abs(K{i,j})));
+                        if normVal>maxNorm 
+                            maxNorm = normVal;
+                        end
+                    end
+                end
+                
+                % filtering out extremely small interconnections
+                for i=1:1:N
+                    for j=1:1:N
+                        if i~=j
+                            if isSoft
+                                K{i,j}(abs(K{i,j})<0.0001*maxNorm) = 0;                       
+                            else
+                                if A(j+1,i+1)==0
+                                    K{i,j} = zeros(3);
+                                end
+                            end
+                        end
+                        K_ijMax = max(abs(K{i,j}(:)));
+                        K{i,j}(abs(K{i,j})<0.01*K_ijMax) = 0;
+                    end
+                end
+
                 obj.K = K;
                 obj.loadTopologyFromK2(K); 
                 obj.loadControllerGains2(K);
             else
                 status = 0;
+                disp(['Global Synthesis Failed'])
             end
         end
 
@@ -1061,6 +1105,11 @@ classdef Platoon < handle
             % Number of follower vehicles
             N = obj.numOfVehicles-1; 
             
+            % Whether to use a soft or hard graph constraint
+            isSoft = 1;
+            % normType = 2;
+            minCostVal = 0.004;
+
             % Load local controllers and resulting passivity indices
             for i = 1:1:N
                 p_i = pVals(i);
@@ -1100,10 +1149,6 @@ classdef Platoon < handle
             I_n = eye(3);
             O = zeros(3*N);
 
-            % Whether to use a soft or hard graph constraint
-            isSoft = 1;
-            % normType = 2;
-
             Q = sdpvar(3*N,3*N,'full'); 
             P = sdpvar(N,N,'diagonal');
             gammaSq = sdpvar(1,1,'full');
@@ -1127,9 +1172,10 @@ classdef Platoon < handle
             % Objective Function
             % costFun = 1*norm(Q.*costMatBlock,normType);
             costFun0 = sum(sum(Q.*costMatBlock));
-    
+            % costFun0 = norm(Q.*costMatBlock,2);
+
             % Minimum Budget Constraints
-            con0 = costFun0 >= 0.002;
+            con0 = costFun0 >= minCostVal;
                         
             % Basic Constraints
             con1 = P >= 0;
@@ -1158,8 +1204,8 @@ classdef Platoon < handle
             
             costFun0Val = value(costFun0)
             costFunVal = value(costFun)
-            PVal = value(P)
-            QVal = value(Q)
+            PVal = value(P);
+            QVal = value(Q);
 
 
 %             con2Val = value([DMat, MMat; MMat', ThetaMat]);
@@ -1173,7 +1219,7 @@ classdef Platoon < handle
             X_p_11Val = value(X_p_11);
             X_p_21Val = value(X_p_21);
 
-            gammaSqVal = value(gammaSq)
+            gammaSqVal = value(gammaSq);
 
             M_neVal = X_p_11Val\QVal;
             
@@ -1219,11 +1265,11 @@ classdef Platoon < handle
 
         % Decentralized Robust Controller Synthesis (Error Dynamics Formulation II)
         function status = decentralizedRobustControllerSynthesis2(obj,pVals)
-            displayMasseges = 1;
+            displayMasseges = 0;
             N = length(obj.vehicles)-1;
             indexing = 1:1:N; % Lets use the default indexin scheme
             isSoft = 1;
-            
+
             G = obj.topology.graph;
             A = adjacency(G);
 
@@ -1233,7 +1279,7 @@ classdef Platoon < handle
                 previousSubsystems = indexing(1:i-1);  
 
                 tic
-                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL,LVal] = obj.vehicles(iInd+1).robustControllerSynthesis2(previousSubsystems, obj.vehicles, pVals(iInd), displayMasseges, isSoft);
+                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL,LVal] = obj.vehicles(iInd+1).robustControllerSynthesis2(previousSubsystems, obj.vehicles, pVals(iInd), displayMasseges);
                 toc
 
                 K{iInd,iInd} = K_ii;
@@ -1247,8 +1293,8 @@ classdef Platoon < handle
                     obj.vehicles(jInd+1).localControllerGains2 = obj.vehicles(jInd+1).localControllerGains2 + K{jInd,iInd}(3,:);
                 end
                 obj.KSequence{iInd} = K;
-                disp(['Current K at i = ',num2str(iInd)])
-                disp(cell2mat(K))
+                % disp(['Current K at i = ',num2str(iInd)])
+                % disp(cell2mat(K))
 
                 if gammaSq_iVal > gammaSqVal
                     gammaSqVal = gammaSq_iVal;
@@ -1378,6 +1424,7 @@ classdef Platoon < handle
             % Objective Function
             % costFun = 1*norm(Q.*costMatBlock,normType);
             costFun0 = sum(sum(Q.*costMatBlock));
+            % costFun0 = norm(Q.*costMatBlock,2);
     
             % Minimum Budget Constraints
             con0 = costFun0 >= 0.0001;
@@ -1488,8 +1535,8 @@ classdef Platoon < handle
                     obj.vehicles(jInd+1).localControllerGains2 = obj.vehicles(jInd+1).localControllerGains2 + K{jInd,iInd}(3,:);
                 end
                 obj.KSequence{iInd} = K;
-                disp(['Current K at i = ',num2str(iInd)])
-                disp(cell2mat(K))
+                % disp(['Current K at i = ',num2str(iInd)])
+                % disp(cell2mat(K))
                 
                 % Update the gammaSq value
                 if gammaSq_iVal > gammaSqVal
@@ -1609,7 +1656,8 @@ classdef Platoon < handle
 
             % Whether to use a soft or hard graph constraint
             isSoft = 1;
-            normType = 2;
+            % normType = 2;
+            minCostVal = 0.004;
 
             Q = sdpvar(3*N,3*N,'full'); 
             P = sdpvar(N,N,'diagonal');
@@ -1633,11 +1681,11 @@ classdef Platoon < handle
             X_21 = X_12';
             
             % Objective Function
-            % costFun0 = 1*norm(Q.*costMatBlock,normType);
             costFun0 = sum(sum(Q.*costMatBlock));
-    
+            % costFun0 = norm(Q.*costMatBlock,2);
+
             % Minimum Budget Constraints
-            con0 = costFun0 >= 0.002;
+            con0 = costFun0 >= minCostVal;
                         
             % Basic Constraints
             con1 = P >= 0;
@@ -1791,7 +1839,8 @@ classdef Platoon < handle
 
             % Whether to use a soft or hard graph constraint
             isSoft = 1;
-            normType = 2;
+            % normType = 2;
+            minCostVal = 0.004;
 
             Q = sdpvar(3*N,3*N,'full'); 
             P = sdpvar(N,N,'diagonal');
@@ -1815,11 +1864,11 @@ classdef Platoon < handle
             X_21 = X_12';
             
             % Objective Function
-            % costFun0 = 1*norm(Q.*costMatBlock,normType);
             costFun0 = sum(sum(Q.*costMatBlock));
-    
+            % costFun0 = norm(Q.*costMatBlock,2);
+
             % Minimum Budget Constraints
-            con0 = costFun0 >= 0.002;
+            con0 = costFun0 >= minCostVal;
                         
             % Basic Constraints
             con1 = P >= 0;
@@ -2329,7 +2378,33 @@ classdef Platoon < handle
             obj.topology = Topology(NBar,startNodes,endNodes,nodeNames);
             obj.updateNeighbors();
         end
+        
+        %% Evaluate topology
+        function comCost = evaluateTopology(obj)
+            N = obj.numOfVehicles-1;
+            G = obj.topology.graph;
+            A = adjacency(G);
 
+            % Loading L_ij values from K
+            for i = 1:1:N
+                for j = 1:1:N
+                    if i~=j
+                        if A(j+1,i+1)==1
+                            costMatBlock{i,j} = 1*[0,0,0; 0,0,0; 1,1,1];
+                        else
+                            costMatBlock{i,j} = (20/N)*abs(i-j)*[0,0,0; 0,0,0; 1,1,1];
+                        end
+                    else
+                        costMatBlock{i,j} = 0*[0,0,0; 0,0,0; 1,1,1];
+                    end
+                end
+            end
+            costMatBlock = cell2mat(costMatBlock);
+            KMatBlock = cell2mat(obj.K);
+
+            comCost = sum(sum(KMatBlock.*costMatBlock));
+            % costFun0 = norm(Q.*costMatBlock,2);
+        end
 
         %% Codesign
         function pVals = optimizeCodesignParameters(obj,isCentralized,isDSS)

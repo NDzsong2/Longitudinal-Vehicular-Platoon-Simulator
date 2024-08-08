@@ -18,10 +18,10 @@ classdef Topology < handle
         function obj = Topology(n_k,startNodes,endNodes,nodeNames)
             if nargin == 1
 
-                % [startNodes,endNodes,nodeNames] = obj.generateAUniformTopology(n_k);
+                [startNodes,endNodes,nodeNames] = obj.generateAUniformTopology(n_k);
                 % [startNodes,endNodes,nodeNames] = obj.generateARandomTopology(n_k);
 %                 [startNodes,endNodes,nodeNames] = obj.generateABlankTopology(n_k);
-               [startNodes,endNodes,nodeNames] = obj.generateAFullyConnectedTopology(n_k);
+               % [startNodes,endNodes,nodeNames] = obj.generateAFullyConnectedTopology(n_k);
 %                [startNodes,endNodes,nodeNames] = obj.generateAHalfRandomTopology(n_k);
 
             end
