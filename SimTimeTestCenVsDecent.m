@@ -127,7 +127,7 @@ showPlots = 0;
 %% Evaluating time for centralized synthesis for each size network
 isOnlyStabilizing = 0;  % Stabilizing controller or Disturbance robust Controller)
 
-numOfIterations = 50;
+numOfIterations = 1000;
 platoonSizes = [3:N+1];
 cenTimesMat = [];
 decenTimesMat = [];
@@ -151,7 +151,7 @@ for k = 1:1:numOfIterations
     
 end
 
-save('timingData2')
+save('timingData3')
 
 figure
 plot(platoonSizes, mean(cenTimesMat),'.-r')

@@ -424,11 +424,11 @@ classdef Platoon < handle
         end
 
 
-        function totalError = update(obj,t,dt)
-            totalError = zeros(3,1);
+        function totalSqError = update(obj,t,dt)
+            totalSqError = zeros(3,1);
             for i = 1:1:obj.numOfVehicles
                 vehicleError = obj.vehicles(i).update(t,dt);
-                totalError = totalError + vehicleError;
+                totalSqError = totalSqError + vehicleError.^2;
             end
         end
 
@@ -915,6 +915,7 @@ classdef Platoon < handle
             
             % Set up the LMI problem
             solverOptions = sdpsettings('solver','mosek','verbose',0);
+            % solverOptions = sdpsettings('solver','gurobi','verbose',0);
             I_n = eye(3);
             O = zeros(3*N);
             
@@ -939,9 +940,29 @@ classdef Platoon < handle
             
             % Objective Function
             % costFun = norm(Q.*costMatBlock,normType) + 0*norm(Q.*nullMatBlock,normType);
-            
             costFun0 = sum(sum(Q.*costMatBlock));
+            % QMat = Q.*costMatBlock;
+            % costFun0 = norm(QMat,1);
             % costFun0 = norm(Q.*costMatBlock,2);
+            
+            % costFun0 = 0;
+            % for i = 1:N
+            %     for j = 1:N
+            %         Q_ij = Q(3 * (i - 1) + 1:3 * i, 3 * (j - 1) + 1:3 * j);
+            %         if i~=j
+            %             if A(j+1,i+1)==1
+            %                 c_ij = 1;
+            %             else
+            %                 c_ij = (20/N)*abs(i-j);
+            %             end
+            %         else
+            %             c_ij = 0;
+            %         end
+            %         costFun0 = costFun0 + c_ij*norm(Q_ij, 2);
+            %     end
+            % end
+            % minCostVal = 0;
+
 
             % Minimum Budget Constraints
             con0 = costFun0 >= minCostVal;

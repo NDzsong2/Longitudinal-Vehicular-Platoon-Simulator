@@ -158,7 +158,7 @@ classdef Network < handle
         function outputArg = update(obj,t,dt)
             
             % Do the necessary computations/generations to generate the signals to initiate the program
-            totalError = zeros(3,1);
+            totalSqError = zeros(3,1);
 
             for k = 1:1:obj.numOfPlatoons
 
@@ -174,18 +174,19 @@ classdef Network < handle
                 obj.platoons(k).computeControlInputs2(t); 
 
                 % Update the states
-                platoonError = obj.platoons(k).update(t,dt);
-                totalError = totalError + platoonError;
+                totalSqError_k = obj.platoons(k).update(t,dt);
+                totalSqError = totalSqError + totalSqError_k;
 
             end
 
             % Update the time, error and cost
             costSoFar = obj.cost^2*obj.time;
+            % costSoFar = obj.cost^2;
             obj.time = obj.time + dt;
 
             
-            obj.error = totalError;
-            costSoFar = costSoFar + (norm(obj.error))^2*dt;
+            obj.error = sqrt([25;9;1].*totalSqError); %This is 2-norms of three error components
+            costSoFar = costSoFar + sum(obj.error.^2)*dt;
             obj.cost = sqrt(costSoFar/obj.time);
             
         end
