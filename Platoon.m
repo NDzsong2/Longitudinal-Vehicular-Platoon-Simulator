@@ -424,11 +424,11 @@ classdef Platoon < handle
         end
 
 
-        function totalError = update(obj,t,dt)
-            totalError = zeros(3,1);
+        function totalSqError = update(obj,t,dt)
+            totalSqError = zeros(3,1);
             for i = 1:1:obj.numOfVehicles
                 vehicleError = obj.vehicles(i).update(t,dt);
-                totalError = totalError + vehicleError;
+                totalSqError = totalSqError + vehicleError.^2;
             end
         end
 
@@ -606,7 +606,7 @@ classdef Platoon < handle
                     K{jInd,iInd} = K_jiVals{jInd};
 
                     %% We need to update K_{jj} values here!!! K_{j0} = k_{j0} + k_{ji}
-                    disp([' Local controller updated at j = ',num2str(j)])
+                    % disp([' Local controller updated at j = ',num2str(j)])
                     obj.vehicles(jInd+1).localControllerGains1 = obj.vehicles(jInd+1).localControllerGains1 + K{jInd,iInd}(3,:);
                 end
                 obj.KSequence{iInd} = K;
@@ -836,7 +836,7 @@ classdef Platoon < handle
                     K{jInd,iInd} = K_jiVals{jInd};
 
                     %% We need to update K_{jj} values here!!! K_{j0} = k_{j0} + k_{ji}
-                    disp([' Local controller updated at j = ',num2str(j)])
+                    % disp([' Local controller updated at j = ',num2str(j)])
                     obj.vehicles(jInd+1).localControllerGains1 = obj.vehicles(jInd+1).localControllerGains1 + K{jInd,iInd}(3,:);
                 end
                 obj.KSequence{iInd} = K;
@@ -915,6 +915,7 @@ classdef Platoon < handle
             
             % Set up the LMI problem
             solverOptions = sdpsettings('solver','mosek','verbose',0);
+            % solverOptions = sdpsettings('solver','gurobi','verbose',0);
             I_n = eye(3);
             O = zeros(3*N);
             
@@ -939,9 +940,29 @@ classdef Platoon < handle
             
             % Objective Function
             % costFun = norm(Q.*costMatBlock,normType) + 0*norm(Q.*nullMatBlock,normType);
-            
             costFun0 = sum(sum(Q.*costMatBlock));
+            % QMat = Q.*costMatBlock;
+            % costFun0 = norm(QMat,1);
             % costFun0 = norm(Q.*costMatBlock,2);
+            
+            % costFun0 = 0;
+            % for i = 1:N
+            %     for j = 1:N
+            %         Q_ij = Q(3 * (i - 1) + 1:3 * i, 3 * (j - 1) + 1:3 * j);
+            %         if i~=j
+            %             if A(j+1,i+1)==1
+            %                 c_ij = 1;
+            %             else
+            %                 c_ij = (20/N)*abs(i-j);
+            %             end
+            %         else
+            %             c_ij = 0;
+            %         end
+            %         costFun0 = costFun0 + c_ij*norm(Q_ij, 2);
+            %     end
+            % end
+            % minCostVal = 0;
+
 
             % Minimum Budget Constraints
             con0 = costFun0 >= minCostVal;
@@ -1044,7 +1065,7 @@ classdef Platoon < handle
                     K{jInd,iInd} = K_jiVals{jInd};
 
                     %% We need to update K_{jj} values here!!! K_{j0} = k_{j0} + k_{ji}
-                    disp([' Local controller updated at j = ',num2str(j)])
+                    % disp([' Local controller updated at j = ',num2str(j)])
                     obj.vehicles(jInd+1).localControllerGains2 = obj.vehicles(jInd+1).localControllerGains2 + K{jInd,iInd}(3,:);
                 end
                 obj.KSequence{iInd} = K;
@@ -1100,8 +1121,9 @@ classdef Platoon < handle
         %% Robust Controller Synthesis Using Error Dynamics Formulation II
 
         % Centralized Robust Controller Synthesis (Error Dynamics II) 
-        function status = centralizedRobustControllerSynthesis2(obj,pVals)
+        function [status, gammaSqVal, timeVal]  = centralizedRobustControllerSynthesis2(obj,pVals)
             
+            tic
             % Number of follower vehicles
             N = obj.numOfVehicles-1; 
             
@@ -1202,9 +1224,9 @@ classdef Platoon < handle
             sol = optimize(cons,[costFun],solverOptions);
             status = sol.problem == 0; %sol.info;
             
-            costFun0Val = value(costFun0)
-            costFunVal = value(costFun)
-            PVal = value(P);
+            % costFun0Val = value(costFun0)
+            % costFunVal = value(costFun)
+            % PVal = value(P);
             QVal = value(Q);
 
 
@@ -1223,6 +1245,8 @@ classdef Platoon < handle
 
             M_neVal = X_p_11Val\QVal;
             
+            timeVal = toc;
+
             % Obtaining K_ij blocks
             M_neVal(nullMatBlock==1) = 0;
             maxNorm = 0;
@@ -1255,7 +1279,7 @@ classdef Platoon < handle
                 end
             end
       
-            obj.K = K
+            obj.K = K;
             obj.loadTopologyFromK2(K);
             obj.loadControllerGains2(K);
 
@@ -1264,7 +1288,7 @@ classdef Platoon < handle
         
 
         % Decentralized Robust Controller Synthesis (Error Dynamics Formulation II)
-        function status = decentralizedRobustControllerSynthesis2(obj,pVals)
+        function [status, gammaSqVal, timeVals] = decentralizedRobustControllerSynthesis2(obj,pVals)
             displayMasseges = 0;
             N = length(obj.vehicles)-1;
             indexing = 1:1:N; % Lets use the default indexin scheme
@@ -1274,13 +1298,15 @@ classdef Platoon < handle
             A = adjacency(G);
 
             gammaSqVal = 0;
+            timeVals = [];
             for i = 1:1:length(indexing)
                 iInd = indexing(i);
                 previousSubsystems = indexing(1:i-1);  
 
                 tic
                 [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL,LVal] = obj.vehicles(iInd+1).robustControllerSynthesis2(previousSubsystems, obj.vehicles, pVals(iInd), displayMasseges);
-                toc
+                timeVal = toc;
+                timeVals = [timeVals, timeVal];
 
                 K{iInd,iInd} = K_ii;
                 for j = 1:1:length(previousSubsystems)
@@ -1289,7 +1315,7 @@ classdef Platoon < handle
                     K{jInd,iInd} = K_jiVals{jInd};
 
                     %% We need to update K_{j0} values here!!! K_{j0} = k_{j0} + k_{ji}
-                    disp([' Local controller updated at j = ',num2str(j)])
+                    % disp([' Local controller updated at j = ',num2str(j)])
                     obj.vehicles(jInd+1).localControllerGains2 = obj.vehicles(jInd+1).localControllerGains2 + K{jInd,iInd}(3,:);
                 end
                 obj.KSequence{iInd} = K;
@@ -1306,7 +1332,7 @@ classdef Platoon < handle
             end
             
             if isRobustStabilizable
-                disp(['Global Synthesis Success with gammaSq=',num2str(value(gammaSqVal))])
+                % disp(['Global Synthesis Success with gammaSq=',num2str(value(gammaSqVal))])
                 status = 1;
 
                 maxNorm = 0;
@@ -1337,7 +1363,7 @@ classdef Platoon < handle
                 end
                 
 
-                obj.K = K
+                obj.K = K;
                 % Loading topology based on K
                 obj.loadTopologyFromK2(K); 
                 obj.loadControllerGains2(K);
@@ -1531,7 +1557,7 @@ classdef Platoon < handle
                     K{jInd,iInd} = K_jiVals{jInd};
 
                     %% We need to update K_{jj} values here!!! K_{j0} = k_{j0} + k_{ji}
-                    disp([' Local controller updated at j = ',num2str(j)])
+                    % disp([' Local controller updated at j = ',num2str(j)])
                     obj.vehicles(jInd+1).localControllerGains2 = obj.vehicles(jInd+1).localControllerGains2 + K{jInd,iInd}(3,:);
                 end
                 obj.KSequence{iInd} = K;
@@ -1608,7 +1634,7 @@ classdef Platoon < handle
             gammaSqVals = [];
             for i = 1:1:N
                 p_i = pVals(i);
-                [statusL_i,LVal,nuVal,rhoVal,gammaSqVal] = obj.vehicles(i+1).synthesizeLocalControllersParameterized(2,p_i);
+                [statusL_i,PVal,KVal,LVal,nuVal,rhoVal,gammaSqVal] = obj.vehicles(i+1).synthesizeLocalControllersParameterized(2,p_i);
                 if statusL_i == 0
                     gammaSqVal = 1000000;
                     return;
@@ -1619,7 +1645,7 @@ classdef Platoon < handle
                     gammaSqVals = [gammaSqVals,gammaSqVal];
                 end
             end
-%             disp(['Local Synthesis Success at Vehicles with mean nu=',num2str(mean(nuVals)),'; mean rho=',num2str(mean(rhoVals)),'.'])
+            % disp(['Local Synthesis Success at Vehicles with mean nu=',num2str(mean(nuVals)),'; mean rho=',num2str(mean(rhoVals)),'.'])
 
             % Creating the adgacency matrix, null matrix and cost matrix
             G = obj.topology.graph;
@@ -1659,7 +1685,7 @@ classdef Platoon < handle
             % normType = 2;
             minCostVal = 0.004;
 
-            Q = sdpvar(3*N,3*N,'full'); 
+            Q = sdpvar(3*N,3*N,'full');
             P = sdpvar(N,N,'diagonal');
             gammaSq = sdpvar(1,1,'full');
 
@@ -1708,6 +1734,7 @@ classdef Platoon < handle
                 cons = [con0,con1,con2,con3,con4]; % With the hard graph constraint con7
                 costFun = 1*costFun0 + 1*gammaSq; % hard (same as soft)
             end
+            
             
             sol = optimize(cons,[costFun],solverOptions);
             status = sol.problem == 0; %sol.info;
@@ -1762,9 +1789,10 @@ classdef Platoon < handle
             if status == 1
                 disp(['Global Synthesis Success with gammaSq=',num2str(value(gammaSqVal))])
             else
+                % disp('here!!!')
+                % pVals
                 disp(['Global Synthesis Failed'])
                 gammaSqVal = 1000000; 
-                return;
             end
 
         end  
@@ -1785,7 +1813,7 @@ classdef Platoon < handle
             gammaSqVals = [];
             for i = 1:1:N
                 p_i = pVals(i);
-                [statusL_i,LVal,nuVal,rhoVal,gammaSqVal] = obj.vehicles(i+1).synthesizeLocalControllersParameterized(2,p_i);
+                [statusL_i,PVal,KVal,LVal,nuVal,rhoVal,gammaSqVal] = obj.vehicles(i+1).synthesizeLocalControllersParameterized(2,p_i);
                 
                 statusLVals = [statusLVals;statusL_i];
                 LVals = [LVals;LVal];
@@ -1956,8 +1984,8 @@ classdef Platoon < handle
             gammaSqVal = 0;
             for i = 1:1:length(indexing)
                 iInd = indexing(i);
-                previousSubsystems = indexing(1:i-1);                
-                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL_i,L_iVal] = obj.vehicles(iInd+1).robustControllerSynthesis2(previousSubsystems, obj.vehicles, pVals(iInd), displayMasseges, isSoft);
+                previousSubsystems = indexing(1:i-1); 
+                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL_i,L_iVal] = obj.vehicles(iInd+1).robustControllerSynthesis2(previousSubsystems, obj.vehicles, pVals(iInd), displayMasseges);
                 
                 if ~isRobustStabilizable
                     break
@@ -1990,7 +2018,7 @@ classdef Platoon < handle
             for i = 1:1:length(indexing)
                 iInd = indexing(i);
                 previousSubsystems = indexing(1:i-1);                
-                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL_i,L_iVal] = obj.vehicles(iInd+1).robustControllerSynthesis2(previousSubsystems, obj.vehicles, pVals(iInd), displayMasseges, isSoft);
+                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL_i,L_iVal] = obj.vehicles(iInd+1).robustControllerSynthesis2(previousSubsystems, obj.vehicles, pVals(iInd), displayMasseges);
                 
                 if ~isRobustStabilizable
                     break
@@ -2428,22 +2456,21 @@ classdef Platoon < handle
             lb = zeros(N,1);
             ub = inf*ones(N,1);
             
-            
+            % p0 = (1/N)*ones(N,1); % initial condition
+            p0 = 0.15*ones(N,1); % initial condition
             if isCentralized && ~isDSS
-                p0 = (1/N)*ones(N,1); % initial condition
                 % f: Function of p_i parameters (each p_i used for local controller design), which will determine the resulting gamma value from the global design
                 % f is what we need to optimize with respect to the used p_i parameters
                 f = @(P)obj.centralizedRobustControllerSynthesis2Codesign(P);
                 nonlcon = @(P)obj.centralizedRobustControllerSynthesis2CodesignFeasibility(P);
+                 % [pVals,fval] = fmincon(f,p0,A,b,Aeq,beq,lb,ub)
                 [pVals,fval] = fmincon(f,p0,A,b,Aeq,beq,lb,ub,nonlcon,options)
             elseif ~isCentralized && ~isDSS
-                p0 = (1/N)*ones(N,1);
                 f = @(P)obj.decentralizedRobustControllerSynthesis2Codesign(P);
                 nonlcon = @(P)obj.decentralizedRobustControllerSynthesis2CodesignFeasibility(P);
 %                 [pVals,fval] = fmincon(f,p0,A,b,Aeq,beq,lb,ub)
                 [pVals,fval] = fmincon(f,p0,A,b,Aeq,beq,lb,ub,nonlcon,options)
             elseif ~isCentralized && isDSS
-                p0 = (1/N)*ones(N,1);
                 f = @(P)obj.decentralizedRobustControllerSynthesisDSS2Codesign(P);
                 nonlcon = @(P)obj.decentralizedRobustControllerSynthesisDSS2CodesignFeasibility(P);
 %                 [pVals,fval] = fmincon(f,p0,A,b,Aeq,beq,lb,ub)

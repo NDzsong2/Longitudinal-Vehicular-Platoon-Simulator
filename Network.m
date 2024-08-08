@@ -158,7 +158,7 @@ classdef Network < handle
         function outputArg = update(obj,t,dt)
             
             % Do the necessary computations/generations to generate the signals to initiate the program
-            totalError = zeros(3,1);
+            totalSqError = zeros(3,1);
 
             for k = 1:1:obj.numOfPlatoons
 
@@ -174,18 +174,19 @@ classdef Network < handle
                 obj.platoons(k).computeControlInputs2(t); 
 
                 % Update the states
-                platoonError = obj.platoons(k).update(t,dt);
-                totalError = totalError + platoonError;
+                totalSqError_k = obj.platoons(k).update(t,dt);
+                totalSqError = totalSqError + totalSqError_k;
 
             end
 
             % Update the time, error and cost
             costSoFar = obj.cost^2*obj.time;
+            % costSoFar = obj.cost^2;
             obj.time = obj.time + dt;
 
             
-            obj.error = totalError;
-            costSoFar = costSoFar + (norm(obj.error))^2*dt;
+            obj.error = sqrt([25;9;1].*totalSqError); %This is 2-norms of three error components
+            costSoFar = costSoFar + sum(obj.error.^2)*dt;
             obj.cost = sqrt(costSoFar/obj.time);
             
         end
@@ -266,7 +267,7 @@ classdef Network < handle
 
 
         %% Controller computation
-        function output = loadPlatoonControllers(obj,errorDynamicsType,isCentralized,isDSS,isOnlyStabilizing,gammaSqBar,nuBar,rhoBar,pVals)
+        function [status, gammaSqVal, timeVals] = loadPlatoonControllers(obj,errorDynamicsType,isCentralized,isDSS,isOnlyStabilizing,gammaSqBar,nuBar,rhoBar,pVals)
             for k = 1:1:obj.numOfPlatoons
 
                 % Controller Types:
@@ -293,13 +294,13 @@ classdef Network < handle
                         if isOnlyStabilizing == 1   % Only Stabilizing
                             status = obj.platoons(k).centralizedStabilizingControllerSynthesis2(pVals(k,:));
                         else                        % Robust
-                            status = obj.platoons(k).centralizedRobustControllerSynthesis2(pVals(k,:)); % nuBar,rhoBar,gammaSqBar are no longer needed
+                            [status, gammaSqVal, timeVals] = obj.platoons(k).centralizedRobustControllerSynthesis2(pVals(k,:)); % nuBar,rhoBar,gammaSqBar are no longer needed
                         end
                     elseif ~isCentralized == 1 && ~isDSS    % Decentralized & Not DSS
                         if isOnlyStabilizing == 1           % Only Stabilizing
                             status = obj.platoons(k).decentralizedStabilizingControllerSynthesis2(pVals(k,:));
                         else                                % Robust
-                            status = obj.platoons(k).decentralizedRobustControllerSynthesis2(pVals(k,:));
+                            [status, gammaSqVal, timeVals] = obj.platoons(k).decentralizedRobustControllerSynthesis2(pVals(k,:));
                         end
                     elseif ~isCentralized == 1 && isDSS     % Decentralized & DSS
                             status = obj.platoons(k).decentralizedRobustControllerSynthesisDSS2(pVals(k,:));  
@@ -309,7 +310,7 @@ classdef Network < handle
                 
                 % Success or Failure
                 if status == 1
-                    disp(['Synthesis Success at Platoon ',num2str(k),'.']);
+                    % disp(['Synthesis Success at Platoon ',num2str(k),'.']);
                 else
                     disp(['Synthesis Failed at Platoon ',num2str(k),'.']);
                 end

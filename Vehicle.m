@@ -1018,7 +1018,7 @@ classdef Vehicle < handle
             % i = length(previousSubsystems)+1;
             iInd = obj.vehicleIndex-1;
             N = iInd;
-            disp(['Stabilizing at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
+            % disp(['Stabilizing at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
             
             % statusL = obj.synthesizeLocalControllers(2,nuBar,rhoBar);
             [statusL,PVal,KVal,LVal,nuVal,rhoVal,gammaSqLVal] = obj.synthesizeLocalControllersParameterized(2,pVal);
@@ -1092,7 +1092,7 @@ classdef Vehicle < handle
                 obj.dataToBeDistributed.P = p_iVal;
                 obj.dataToBeDistributed.tildeW = tildeW_i;  % Storing
                 
-                disp(['Data saved ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
+                % disp(['Data saved ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
                 if ~isStabilizable
                     disp(['Not stabilizable at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
                 end
@@ -1259,7 +1259,7 @@ classdef Vehicle < handle
 
                 obj.dataToBeDistributed.P = p_iVal;         % Storing
                 obj.dataToBeDistributed.tildeW = tildeW_i; % Storing
-                disp(['Data saved ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
+                % disp(['Data saved ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
                 if ~isStabilizable
                     disp(['LMI is not feasible at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
                 end
@@ -1358,7 +1358,7 @@ classdef Vehicle < handle
                 p_iVal = value(p_i);
                 Q_iiVal = value(Q_ii);
                 gammaSq_iVal = value(gammaSq_i);
-                costFun0Val = value(costFun0);
+                % costFun0Val = value(costFun0);
 
                 con2Val = value(W_ii);
                 eigVals = eig(con2Val);
@@ -1398,7 +1398,7 @@ classdef Vehicle < handle
                     disp(['Decentralized Synthesis Failed at: ',num2str(iInd),'.'])
                 else
                     isRobustStabilizable = 1;
-                    disp(['Decentralized Synthesis Success at: ',num2str(iInd),' with gammaSq=',num2str(value(gammaSq_iVal)),'.'])
+                    % disp(['Decentralized Synthesis Success at: ',num2str(iInd),' with gammaSq=',num2str(value(gammaSq_iVal)),'.'])
                 end
 
             else
@@ -1526,7 +1526,7 @@ classdef Vehicle < handle
                 p_iVal = value(p_i);
                 Q_iiVal = value(Q_ii);
                 gammaSq_iVal = value(gammaSq_i);
-                costFun0Val = value(costFun0);
+                % costFun0Val = value(costFun0);
 
                 con2Val = value([M_i, W_i';W_i, W_ii]);
                 eigVals = eig(con2Val);   
@@ -1585,7 +1585,7 @@ classdef Vehicle < handle
                     disp(['Decentralized Synthesis Failed at: ',num2str(iInd),'.'])
                 else
                     isRobustStabilizable = 1;
-                    disp(['Decentralized Synthesis Success at: ',num2str(iInd),' with gammaSq=',num2str(value(gammaSq_iVal)),'.'])
+                    % disp(['Decentralized Synthesis Success at: ',num2str(iInd),' with gammaSq=',num2str(value(gammaSq_iVal)),'.'])
                 end 
 
             end
