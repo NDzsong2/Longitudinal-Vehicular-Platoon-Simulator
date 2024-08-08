@@ -1020,8 +1020,7 @@ classdef Vehicle < handle
             N = iInd;
             disp(['Stabilizing at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
             
-            % statusL = obj.synthesizeLocalControllers(2,nuBar,rhoBar);
-            [statusL,PVal,KVal,LVal,nuVal,rhoVal,gammaSqLVal] = obj.synthesizeLocalControllersParameterized(2,pVal);
+            statusL = obj.synthesizeLocalControllers(2,nuBar,rhoBar);
             if statusL == 0
                 isStabilizable = 0;
                 return
@@ -1031,7 +1030,6 @@ classdef Vehicle < handle
             solverOptions = sdpsettings('solver','mosek','verbose',0);
             isSoft = 1; % Whether to use a soft or hard graph constraint
             normType = 2; % Type of the norm to be used in the LMI
-            minCostVal = 0.001;
 
             I_n = eye(3);
             O_n = zeros(3);
@@ -1209,7 +1207,7 @@ classdef Vehicle < handle
                 costFun0 = costFun0 + sum(sum(Q_ii.*cost_ii));
                 % costFun0 = costFun0 + norm(Q_ii.*cost_ii,1);
                 
-                con0 = costFun0 >= iInd*minCostVal/5;
+                con0 = costFun0 >= iInd*0.002/5;
                                 
                 if isSoft
                     cons = [con0,con1,con2,con3];
@@ -1239,7 +1237,7 @@ classdef Vehicle < handle
                     K_ijVals{jInd} = K_ij;
                     obj.controllerGainsCollection.decenStabCont1{jInd} = K_ij;
                                         
-                    K_ji = (p_jVal*X_j_11)\Q_jiVal;
+                    K_ji = (p_jVal*X_j_11)\Q_jiVal
                     K_jiVals{jInd} = K_ji; % these values will be loaded outside the function
                 end  
                 
@@ -1298,7 +1296,6 @@ classdef Vehicle < handle
 %             solverOptions = sdpsettings('solver','mosek','verbose',2,'warning',1);
             isSoft = 1; % Whether to use a soft or hard graph constraint
             normType = 2; % Type of the norm to be used in the LMI
-            minCostVal = 0.001;
 
             I_n = eye(3);
             O_n = zeros(3);
@@ -1510,7 +1507,7 @@ classdef Vehicle < handle
                 costFun0 = costFun0 + sum(sum(Q_ii.*cost_ii));
                 % costFun0 = costFun0 + norm(Q_ii.*cost_ii,1);
 
-                con0 = costFun0 >= iInd*minCostVal/5;
+                con0 = costFun0 >= iInd*0.002/5;
                 
                 if isSoft
                     cons = [con0,con1,con2,con3];
