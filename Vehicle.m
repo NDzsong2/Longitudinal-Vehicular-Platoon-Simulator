@@ -1012,7 +1012,7 @@ classdef Vehicle < handle
 
 
         %% Decentralized Stabilizing Controller Synthesis (Error Dynamics II)
-        function [isStabilizable,K_ii,K_ijVals,K_jiVals] = stabilizingControllerSynthesis2(obj, previousSubsystems, subsystems, pVal)
+        function [isStabilizable,K_ii,K_ijVals,K_jiVals] = stabilizingControllerSynthesis2(obj, previousSubsystems, subsystems, pVal, isSoft)
             
             %%%% Revised upto this
             % i = length(previousSubsystems)+1;
@@ -1029,8 +1029,8 @@ classdef Vehicle < handle
 
             % Seting up the LMI problem
             solverOptions = sdpsettings('solver','mosek','verbose',0);
-            isSoft = 1; % Whether to use a soft or hard graph constraint
-            normType = 2; % Type of the norm to be used in the LMI
+            % isSoft = 1; % Whether to use a soft or hard graph constraint
+            % normType = 2; % Type of the norm to be used in the LMI
             minCostVal = 0.001;
 
             I_n = eye(3);
@@ -1269,7 +1269,7 @@ classdef Vehicle < handle
 
 
         %% Decentralized Robust Controller Synthesis (Error Dynamics II)
-        function [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL,LVal] = robustControllerSynthesis2(obj, previousSubsystems, subsystems, pVal, displayMasseges)
+        function [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL,LVal] = robustControllerSynthesis2(obj, previousSubsystems, subsystems, pVal, displayMasseges, isSoft)
 
             % i = length(previousSubsystems)+1;
             iInd = obj.vehicleIndex-1;
@@ -1296,8 +1296,8 @@ classdef Vehicle < handle
             % Seting up the LMI problem
             solverOptions = sdpsettings('solver','mosek','verbose',0);
 %             solverOptions = sdpsettings('solver','mosek','verbose',2,'warning',1);
-            isSoft = 1; % Whether to use a soft or hard graph constraint
-            normType = 2; % Type of the norm to be used in the LMI
+            % isSoft = 1; % Whether to use a soft or hard graph constraint
+            % normType = 2; % Type of the norm to be used in the LMI
             minCostVal = 0.001;
 
             I_n = eye(3);
@@ -1593,7 +1593,7 @@ classdef Vehicle < handle
 
 
         %% Decentralized Robust Controller Synthesis With DSS Constraints (Error Dynamics II)
-        function [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL,LVal] = robustControllerSynthesisDSS2(obj, previousSubsystems, subsystems, pVal, displayMasseges)
+        function [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL,LVal] = robustControllerSynthesisDSS2(obj, previousSubsystems, subsystems, pVal, displayMasseges, isSoft)
 
             % i = length(previousSubsystems)+1;
             iInd = obj.vehicleIndex-1;
@@ -1620,8 +1620,8 @@ classdef Vehicle < handle
 
             % Setting up the LMI problem
             solverOptions = sdpsettings('solver','mosek','verbose',0);
-            isSoft = 1;
-            normType = 2; % Type of the norm to be used in the LMI
+            % isSoft = 1;
+            % normType = 2; % Type of the norm to be used in the LMI
             minCostVal = 0.0001;
 
 

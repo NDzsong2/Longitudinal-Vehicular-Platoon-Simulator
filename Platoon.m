@@ -863,7 +863,7 @@ classdef Platoon < handle
         %% Stabilizing Controller Synthesis Using Error Dynamics Formulation II
 
         % Centralized Stabilizing Controller Synthesis (Error Dynamics II) 
-        function status = centralizedStabilizingControllerSynthesis2(obj,pVals)
+        function status = centralizedStabilizingControllerSynthesis2(obj,isSoft,pVals)
             % This is a very simple stabilizing controller synthesized
             % based on the error dynamics formulation 2.
 
@@ -871,7 +871,7 @@ classdef Platoon < handle
             N = obj.numOfVehicles-1; 
             
             % Whether to use a soft or hard graph constraint
-            isSoft = 1;
+            % isSoft = 1;
             % normType = 2;
             minCostVal = 0.004;
 
@@ -1047,16 +1047,16 @@ classdef Platoon < handle
         
 
         % Decentralized Stabilizing Controller Synthesis (Error Dynamics II)
-        function status = decentralizedStabilizingControllerSynthesis2(obj,pVals)
+        function status = decentralizedStabilizingControllerSynthesis2(obj,isSoft,pVals)
             
             N = length(obj.vehicles)-1;
             indexing = 1:N; % Lets use the default indexin scheme
-            isSoft = 1;
+            % isSoft = 1;
 
             for i = 1:1:length(indexing)
                 iInd = indexing(i);
                 previousSubsystems = indexing(1:i-1);                
-                [isStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd+1).stabilizingControllerSynthesis2(previousSubsystems, obj.vehicles, pVals(iInd));
+                [isStabilizable,K_ii,K_ijVals,K_jiVals] = obj.vehicles(iInd+1).stabilizingControllerSynthesis2(previousSubsystems, obj.vehicles, pVals(iInd), isSoft);
 
                 K{iInd,iInd} = K_ii;
                 for j = 1:1:length(previousSubsystems)
@@ -1121,14 +1121,14 @@ classdef Platoon < handle
         %% Robust Controller Synthesis Using Error Dynamics Formulation II
 
         % Centralized Robust Controller Synthesis (Error Dynamics II) 
-        function [status, gammaSqVal, timeVal]  = centralizedRobustControllerSynthesis2(obj,pVals)
+        function [status, gammaSqVal, timeVal]  = centralizedRobustControllerSynthesis2(obj,isSoft,pVals)
             
             tic
             % Number of follower vehicles
             N = obj.numOfVehicles-1; 
             
             % Whether to use a soft or hard graph constraint
-            isSoft = 1;
+            % isSoft = 1;
             % normType = 2;
             minCostVal = 0.004;
 
@@ -1288,11 +1288,11 @@ classdef Platoon < handle
         
 
         % Decentralized Robust Controller Synthesis (Error Dynamics Formulation II)
-        function [status, gammaSqVal, timeVals] = decentralizedRobustControllerSynthesis2(obj,pVals)
+        function [status, gammaSqVal, timeVals] = decentralizedRobustControllerSynthesis2(obj,isSoft,pVals)
             displayMasseges = 0;
             N = length(obj.vehicles)-1;
             indexing = 1:1:N; % Lets use the default indexin scheme
-            isSoft = 1;
+            % isSoft = 1;
 
             G = obj.topology.graph;
             A = adjacency(G);
@@ -1304,7 +1304,7 @@ classdef Platoon < handle
                 previousSubsystems = indexing(1:i-1);  
 
                 tic
-                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL,LVal] = obj.vehicles(iInd+1).robustControllerSynthesis2(previousSubsystems, obj.vehicles, pVals(iInd), displayMasseges);
+                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL,LVal] = obj.vehicles(iInd+1).robustControllerSynthesis2(previousSubsystems, obj.vehicles, pVals(iInd), displayMasseges, isSoft);
                 timeVal = toc;
                 timeVals = [timeVals, timeVal];
 
@@ -1379,7 +1379,7 @@ classdef Platoon < handle
         %% Robust Controller Synthesis Using Error Dynamics Formulation II With DSS Constraints
 
         % Centralized Robust Controller Synthesis With DSS Constraints (not finished) (Error Dynamics II) 
-        function status = centralizedRobustControllerSynthesisDSS2(obj,pVals)
+        function status = centralizedRobustControllerSynthesisDSS2(obj,isSoft,pVals)
             
             % Number of follower vehicles
             N = obj.numOfVehicles-1; 
@@ -1424,8 +1424,9 @@ classdef Platoon < handle
             O = zeros(3*N);
 
             % Whether to use a soft or hard graph constraint
-            isSoft = 1;
+            % isSoft = 1;
             % normType = 2;
+            minCostVal = 0.001;
 
             Q = sdpvar(3*N,3*N,'full'); 
             P = sdpvar(N,N,'diagonal');
@@ -1453,7 +1454,7 @@ classdef Platoon < handle
             % costFun0 = norm(Q.*costMatBlock,2);
     
             % Minimum Budget Constraints
-            con0 = costFun0 >= 0.0001;
+            con0 = costFun0 >= minCostVal;
                         
             % Basic Constraints
             con1 = P >= 0;
@@ -1535,11 +1536,11 @@ classdef Platoon < handle
         
 
         % Decentralized Robust Controller Synthesis With DSS Constraints (Error Dynamics Formulation II)
-        function [status, gammaSqVal, timeVals] = decentralizedRobustControllerSynthesisDSS2(obj,pVals)
+        function [status, gammaSqVal, timeVals] = decentralizedRobustControllerSynthesisDSS2(obj,isSoft,pVals)
             displayMasseges = 0;
             N = length(obj.vehicles)-1;
             indexing = 1:1:N; % Lets use the default indexin scheme
-            isSoft = 1;
+            % isSoft = 1;
 
             gammaSqVal = 0;
             timeVals = [];
@@ -1548,7 +1549,7 @@ classdef Platoon < handle
                 previousSubsystems = indexing(1:i-1);
                 
                 tic;
-                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL,LVal] = obj.vehicles(iInd+1).robustControllerSynthesisDSS2(previousSubsystems, obj.vehicles, pVals(iInd), displayMasseges);
+                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL,LVal] = obj.vehicles(iInd+1).robustControllerSynthesisDSS2(previousSubsystems, obj.vehicles, pVals(iInd), displayMasseges, isSoft);
                 timeVal = toc;
                 timeVals = [timeVals, timeVal];
 
@@ -1610,7 +1611,7 @@ classdef Platoon < handle
                     end
                 end
 
-                obj.K = K
+                obj.K = K;
                 % Loading topology based on K
                 obj.loadTopologyFromK2(K); 
                 obj.loadControllerGains2(K);
@@ -1984,7 +1985,7 @@ classdef Platoon < handle
             displayMasseges = 0;
             N = length(obj.vehicles)-1;
             indexing = 1:1:N; % Lets use the default indexin scheme
-            isSoft = 0;
+            isSoft = 1;
 
             gammaSqVal = 0;
             for i = 1:1:length(indexing)
@@ -2016,7 +2017,7 @@ classdef Platoon < handle
             displayMasseges = 0;
             N = length(obj.vehicles)-1;
             indexing = 1:1:N; % Lets use the default indexin scheme
-            isSoft = 0;
+            isSoft = 1;
 
             statusLVals = zeros(N,1);
             LVals = zeros(N,3);
