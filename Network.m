@@ -303,7 +303,7 @@ classdef Network < handle
                             [status, gammaSqVal, timeVals] = obj.platoons(k).decentralizedRobustControllerSynthesis2(pVals(k,:));
                         end
                     elseif ~isCentralized == 1 && isDSS     % Decentralized & DSS
-                            status = obj.platoons(k).decentralizedRobustControllerSynthesisDSS2(pVals(k,:));  
+                            [status, gammaSqVal, timeVals] = obj.platoons(k).decentralizedRobustControllerSynthesisDSS2(pVals(k,:));  
                                                             % Robust
                     end
                 end

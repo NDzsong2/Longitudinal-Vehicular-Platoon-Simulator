@@ -1593,7 +1593,7 @@ classdef Vehicle < handle
 
 
         %% Decentralized Robust Controller Synthesis With DSS Constraints (Error Dynamics II)
-        function [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL,LVal] = robustControllerSynthesisDSS2(obj, previousSubsystems, subsystems, pVal, displayMasseges, isSoft)
+        function [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL,LVal] = robustControllerSynthesisDSS2(obj, previousSubsystems, subsystems, pVal, displayMasseges)
 
             % i = length(previousSubsystems)+1;
             iInd = obj.vehicleIndex-1;
@@ -1605,11 +1605,11 @@ classdef Vehicle < handle
             % Add PVal and KVal in the original local controller synthesis function here to be used later
             [statusL,PVal,KVal,LVal,nuVal,rhoVal,gammaSqLVal] = obj.synthesizeLocalControllersParameterized(2,pVal);
             if displayMasseges
-                disp(['Robust Stabilizing at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
+                % disp(['Robust Stabilizing at: ',num2str(iInd),' after ',num2str(previousSubsystems),'.']);
                 if statusL == 1
-                    disp(['Local Synthesis Success at: ',num2str(iInd),' with gammaSq=',num2str(value(gammaSqLVal)),'.'])
+                    % disp(['Local Synthesis Success at: ',num2str(iInd),' with gammaSq=',num2str(value(gammaSqLVal)),'.'])
                 else
-                    disp(['Local Synthesis Failed at: ',num2str(iInd),'.'])
+                    disp(['Local Synthesis Failed at: ',num2str(iInd),'.']);
                 end
             end
 
@@ -1620,7 +1620,10 @@ classdef Vehicle < handle
 
             % Setting up the LMI problem
             solverOptions = sdpsettings('solver','mosek','verbose',0);
+            isSoft = 1;
             normType = 2; % Type of the norm to be used in the LMI
+            minCostVal = 0.0001;
+
 
             I_n = eye(3);
             O_n = zeros(3);
@@ -1638,7 +1641,7 @@ classdef Vehicle < handle
             epsilon_i = 1.01-rho_i;  
 
             % min and max eigenvalues of R_i
-            R_i = inv(PVal)
+            R_i = inv(PVal);
             obj.R_i = R_i;
             MaxEigR_i = max(eig(R_i));
             MinEigR_i = min(eig(R_i));
@@ -1659,7 +1662,6 @@ classdef Vehicle < handle
                 costFun0 = sum(sum(Q_ii.*cost_ii));
                 % costFun0 = norm(Q_ii.*cost_ii,1);
 
-                con0 = costFun0 >= 0.0001;
                 con1 = p_i >= 0;
 
                 DMat_ii = [p_i*X_i_11, O_n; O_n, I_n];
@@ -1687,7 +1689,7 @@ classdef Vehicle < handle
                 p_iVal = value(p_i);
                 Q_iiVal = value(Q_ii);
                 gammaSq_iVal = value(gammaSq_i);
-                costFun0Val = value(costFun0);
+                % costFun0Val = value(costFun0);
 
                 con2Val = value(W_ii);
                 eigVals = eig(con2Val);
@@ -1718,7 +1720,7 @@ classdef Vehicle < handle
                     disp(['Decentralized Synthesis Failed at: ',num2str(iInd),'.'])
                 else
                     isRobustStabilizable = 1;
-                    disp(['Decentralized Synthesis Success at: ',num2str(iInd),' with gammaSq=',num2str(value(gammaSq_iVal)),'.'])
+                    % disp(['Decentralized Synthesis Success at: ',num2str(iInd),' with gammaSq=',num2str(value(gammaSq_iVal)),'.'])
                 end
 
             else
@@ -1898,7 +1900,7 @@ classdef Vehicle < handle
                 costFun0 = costFun0 + sum(sum(Q_ii.*cost_ii));
                 % costFun0 = costFun0 + norm(Q_ii.*cost_ii,1);
 
-                con0 = costFun0 >= 0.0001;
+                con0 = costFun0 >= iInd*minCostVal/5;  %0.0001;
                 
                 if isSoft               
                     cons = [con0,con1,con2,con3,con4,con5];
@@ -1969,7 +1971,7 @@ classdef Vehicle < handle
                     disp(['Decentralized Synthesis Failed at: ',num2str(iInd),'.'])
                 else
                     isRobustStabilizable = 1;
-                    disp(['Decentralized Synthesis Success at: ',num2str(iInd),' with gammaSq=',num2str(value(gammaSq_iVal)),'.'])
+                    % disp(['Decentralized Synthesis Success at: ',num2str(iInd),' with gammaSq=',num2str(value(gammaSq_iVal)),'.'])
                 end 
 
             end

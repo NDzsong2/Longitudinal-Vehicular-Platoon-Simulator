@@ -1078,7 +1078,7 @@ classdef Platoon < handle
             end
         
             if isStabilizable
-                disp(['Global Synthesis Success'])
+                % disp(['Global Synthesis Success'])
                 status = 1;
                 
                 maxNorm = 0;
@@ -1535,18 +1535,23 @@ classdef Platoon < handle
         
 
         % Decentralized Robust Controller Synthesis With DSS Constraints (Error Dynamics Formulation II)
-        function status = decentralizedRobustControllerSynthesisDSS2(obj,pVals)
-            displayMasseges = 1;
+        function [status, gammaSqVal, timeVals] = decentralizedRobustControllerSynthesisDSS2(obj,pVals)
+            displayMasseges = 0;
             N = length(obj.vehicles)-1;
             indexing = 1:1:N; % Lets use the default indexin scheme
             isSoft = 1;
 
             gammaSqVal = 0;
+            timeVals = [];
             for i = 1:1:length(indexing)
                 iInd = indexing(i);
-                previousSubsystems = indexing(1:i-1);                
-                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL,LVal] = obj.vehicles(iInd+1).robustControllerSynthesisDSS2(previousSubsystems, obj.vehicles, pVals(iInd), displayMasseges, isSoft);
+                previousSubsystems = indexing(1:i-1);
                 
+                tic;
+                [isRobustStabilizable,K_ii,K_ijVals,K_jiVals,gammaSq_iVal,statusL,LVal] = obj.vehicles(iInd+1).robustControllerSynthesisDSS2(previousSubsystems, obj.vehicles, pVals(iInd), displayMasseges);
+                timeVal = toc;
+                timeVals = [timeVals, timeVal];
+
                 % Collect the K_{ii} value into the K matrix
                 K{iInd,iInd} = K_ii;
 
@@ -1575,7 +1580,7 @@ classdef Platoon < handle
             end
             
             if isRobustStabilizable
-                disp(['Global Synthesis Success with gammaSq=',num2str(value(gammaSqVal))])
+                % disp(['Global Synthesis Success with gammaSq=',num2str(value(gammaSqVal))])
                 status = 1;
 
                 maxNorm = 0;
