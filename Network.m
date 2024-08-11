@@ -267,7 +267,7 @@ classdef Network < handle
 
 
         %% Controller computation
-        function [status, gammaSqVal, timeVals] = loadPlatoonControllers(obj,errorDynamicsType,isCentralized,isDSS,isOnlyStabilizing,gammaSqBar,nuBar,rhoBar,pVals)
+        function [status, gammaSqVal, timeVals] = loadPlatoonControllers(obj,errorDynamicsType,isCentralized,isDSS,isOnlyStabilizing,isSoft,gammaSqBar,nuBar,rhoBar,pVals)
             for k = 1:1:obj.numOfPlatoons
 
                 % Controller Types:
@@ -292,18 +292,18 @@ classdef Network < handle
                 else                                % Error dynamics formulation II
                     if isCentralized == 1 && ~isDSS % Centralized & Not DSS
                         if isOnlyStabilizing == 1   % Only Stabilizing
-                            status = obj.platoons(k).centralizedStabilizingControllerSynthesis2(pVals(k,:));
+                            status = obj.platoons(k).centralizedStabilizingControllerSynthesis2(isSoft,pVals(k,:));
                         else                        % Robust
-                            [status, gammaSqVal, timeVals] = obj.platoons(k).centralizedRobustControllerSynthesis2(pVals(k,:)); % nuBar,rhoBar,gammaSqBar are no longer needed
+                            [status, gammaSqVal, timeVals] = obj.platoons(k).centralizedRobustControllerSynthesis2(isSoft,pVals(k,:)); % nuBar,rhoBar,gammaSqBar are no longer needed
                         end
                     elseif ~isCentralized == 1 && ~isDSS    % Decentralized & Not DSS
                         if isOnlyStabilizing == 1           % Only Stabilizing
-                            status = obj.platoons(k).decentralizedStabilizingControllerSynthesis2(pVals(k,:));
+                            status = obj.platoons(k).decentralizedStabilizingControllerSynthesis2(isSoft,pVals(k,:));
                         else                                % Robust
-                            [status, gammaSqVal, timeVals] = obj.platoons(k).decentralizedRobustControllerSynthesis2(pVals(k,:));
+                            [status, gammaSqVal, timeVals] = obj.platoons(k).decentralizedRobustControllerSynthesis2(isSoft,pVals(k,:));
                         end
                     elseif ~isCentralized == 1 && isDSS     % Decentralized & DSS
-                            status = obj.platoons(k).decentralizedRobustControllerSynthesisDSS2(pVals(k,:));  
+                            [status, gammaSqVal, timeVals] = obj.platoons(k).decentralizedRobustControllerSynthesisDSS2(isSoft,pVals(k,:));  
                                                             % Robust
                     end
                 end
